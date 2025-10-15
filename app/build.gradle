@@ -20,7 +20,8 @@ repositories {
 
 dependencies {
     // Use JUnit Jupiter for testing.
-    testImplementation libs.junit.jupiter
+    testImplementation(platform('org.junit:junit-bom:5.14.0'))
+    testImplementation('org.junit.jupiter:junit-jupiter')
 
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
@@ -38,6 +39,10 @@ java {
 application {
     // Define the main class for the application.
     mainClass = 'org.soft2412.vsas.App'
+}
+
+googleJavaFormat {
+    toolVersion = "1.1"
 }
 
 tasks.named('test', Test) {

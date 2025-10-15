@@ -3,9 +3,15 @@
  */
 package org.soft2412.vsas;
 
-import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
-class AppTest {
+import org.junit.jupiter.api.Test;
 
+class AppTest {
+  @Test
+  public void testAppExists() {
+    // Test that App class can be instantiated
+    App app = new App();
+    assertNotNull(app);
+  }
 }
