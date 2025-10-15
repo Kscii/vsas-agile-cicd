@@ -2,7 +2,6 @@ pipeline {
   agent any
   options {
     timestamps()
-    ansiColor('xterm')
     buildDiscarder(logRotator(numToKeepStr: '20'))
   }
 
@@ -38,9 +37,7 @@ pipeline {
     stage('Test') {
       steps {
         echo 'Running unit tests...'
-        sh '''
-          ./gradlew test -x verifyGoogleJavaFormat --no-daemon
-        '''
+        sh './gradlew test -x verifyGoogleJavaFormat --no-daemon'
       }
       post {
         always {
