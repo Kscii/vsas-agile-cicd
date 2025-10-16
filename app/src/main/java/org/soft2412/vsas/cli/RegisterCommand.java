@@ -1,57 +1,58 @@
 package org.soft2412.vsas.cli;
 
-import java.io.IOException;
 import java.io.PrintStream;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.regex.Pattern;
+import org.soft2412.vsas.model.User;
+import org.soft2412.vsas.repo.FileUserRepository;
+import org.soft2412.vsas.repo.UserRepository;
 import org.soft2412.vsas.security.PasswordHasher;
 
 /**
- * Register a user by writing a TSV row with salted password hash.
+ * US-A1 Task #13: vsas register --username <u> --password
  *
- * <p>This command is limited to Task #39 scope: - Generate per-user random salt (16 bytes). -
- * Compute SHA-256(salt || UTF-8(password)) as hex digest. - Persist only passwordHash (hex) and
- * salt (hex); never store plaintext. - Create data/users.tsv if missing and ensure header exists.
+ * <p>--email <e> --phone <ph> --id-key <k>
  *
- * <p>It intentionally does NOT implement idKey uniqueness or full validation; those belong to a
- * different story/task.
+ * <p>Scope: - Parse required flags; on success print a message and exit code 0. - Generate per-user
+ * salt; hash password via PasswordHasher; persist via UserRepository. - Never store plaintext
+ * password. - Header/file creation is handled by the repository (TSV storage).
+ *
+ * <p>Uniqueness of idKey is enforced by Task #14 (duplicate -> non-zero + clear error).
  */
 public final class RegisterCommand implements Command {
 
-  private static final String DEFAULT_USERS_PATH = "data/users.tsv";
-  private static final String[] HEADER =
-      new String[] {
-        "username", "email", "phone", "idKey", "role", "passwordHash", "salt", "createdAt"
-      };
   private static final Pattern TAB_OR_NEWLINE = Pattern.compile("[\\t\\r\\n]");
 
   private final PrintStream out;
   private final PrintStream err;
   private final PasswordHasher hasher;
+  private final UserRepository repo;
 
   public RegisterCommand() {
-    this(System.out, System.err, new PasswordHasher());
+    this(System.out, System.err, new PasswordHasher(), new FileUserRepository());
   }
 
-  // Visible for tests
+  // Back-compat for existing tests (A6)
   RegisterCommand(PrintStream out, PrintStream err, PasswordHasher hasher) {
+    this(out, err, hasher, new FileUserRepository());
+  }
+
+  // Visible for tests / DI
+  RegisterCommand(PrintStream out, PrintStream err, PasswordHasher hasher, UserRepository repo) {
     this.out = Objects.requireNonNull(out, "out");
     this.err = Objects.requireNonNull(err, "err");
     this.hasher = Objects.requireNonNull(hasher, "hasher");
+    this.repo = Objects.requireNonNull(repo, "repo");
   }
 
   @Override
   public int run(String[] args) {
-    // Minimal flags required for this task:
-    // --username <u> --password <p>
-    // Optional (carried through into TSV as-is or empty):
-    // --email <e> --phone <ph> --id-key <k> --role <r>
-    String username = null, password = null, email = "", phone = "", idKey = "", role = "USER";
+    // Required by US-A1: username, password, email, phone, id-key
+    String username = null, password = null, email = null, phone = null, idKey = null;
+    String role = "USER"; // optional; default for this story
+
     for (int i = 0; i < args.length; i++) {
       switch (args[i]) {
         case "--username":
@@ -73,64 +74,67 @@ public final class RegisterCommand implements Command {
           if (i + 1 < args.length) role = args[++i];
           break;
         default:
-          // ignore unknown flags for compatibility
-      }
+          /* ignore unknown for forward-compat */ }
     }
 
-    // Explicit null/blank checks to silence static analysis and prevent misuse.
+    // Explicit null/blank checks
     if (username == null
         || username.trim().isEmpty()
         || password == null
-        || password.trim().isEmpty()) {
+        || password.trim().isEmpty()
+        || email == null
+        || email.trim().isEmpty()
+        || phone == null
+        || phone.trim().isEmpty()
+        || idKey == null
+        || idKey.trim().isEmpty()) {
       err.println(
-          "Error: missing required flags. Usage: vsas register --username <u> --password <p> [--email <e> --phone <ph> --id-key <k> --role <r>]");
+          "Error: missing required flags. Usage: vsas register --username <u> --password <p> --email <e> --phone <ph> --id-key <k>");
       return 2;
     }
 
-    // Sanitize fields to keep TSV well-formed (no tabs/newlines).
+    // Sanitize fields for TSV safety
     username = sanitize(username);
     email = sanitize(email);
     phone = sanitize(phone);
     idKey = sanitize(idKey);
-    role = sanitize(role);
+    role = (role == null || role.trim().isEmpty()) ? "USER" : sanitize(role);
 
+    // ---- Task #14: enforce unique idKey BEFORE hashing/persisting ----
+    try {
+      if (repo.existsIdKey(idKey)) {
+        err.println("Error: id-key already exists: " + idKey);
+        return 1; // non-zero per acceptance criteria
+      }
+    } catch (Exception ignored) {
+      // Repository interface doesn't throw checked exceptions; keep defensive catch.
+    }
+
+    final String nonNullPassword = password; // proven non-null above
     char[] pwdChars = null;
     try {
-      // Ensure data directory and header
-      Path usersPath = Path.of(DEFAULT_USERS_PATH);
-      ensureHeader(usersPath);
-
-      // Salt + hash
+      // Salt + hash (never store plaintext)
       byte[] salt = hasher.generateSalt(16);
-      pwdChars = password.toCharArray(); // explicit non-null use
+      pwdChars = nonNullPassword.toCharArray();
       String hashHex = hasher.hashToHex(pwdChars, salt);
       String saltHex = PasswordHasher.bytesToHex(salt);
 
-      // Persist a single TSV row
-      String createdAt = Instant.now().toString();
-      String row =
-          String.join(
-                  "\t",
-                  nvl(username),
-                  nvl(email),
-                  nvl(phone),
-                  nvl(idKey),
-                  nvl(role),
-                  hashHex,
-                  saltHex,
-                  createdAt)
-              + "\n";
+      // Persist via repository (repo ensures header and file)
+      User user = new User(username, email, phone, idKey, role, hashHex, saltHex, Instant.now());
+      boolean ok = repo.save(user);
+      if (!ok) {
+        err.println("Error: cannot persist user");
+        return 2;
+      }
 
-      Files.writeString(
-          usersPath, row, StandardCharsets.UTF_8, java.nio.file.StandardOpenOption.APPEND);
-
+      // Success path per acceptance criteria
       out.println("Registered user " + username);
       return 0;
-    } catch (IOException ioe) {
+    } catch (Exception e) {
       err.println("Error: cannot persist user");
       return 2;
     } finally {
-      if (pwdChars != null) Arrays.fill(pwdChars, '\0'); // best-effort wipe
+      if (pwdChars != null) Arrays.fill(pwdChars, '\0');
     }
   }
 
@@ -145,21 +149,6 @@ public final class RegisterCommand implements Command {
   }
 
   private static String sanitize(String s) {
-    return s == null ? "" : TAB_OR_NEWLINE.matcher(s).replaceAll(" ").trim();
-  }
-
-  private static String nvl(String s) {
-    return s == null ? "" : s;
-  }
-
-  private static void ensureHeader(Path usersPath) throws IOException {
-    Path dir = usersPath.getParent();
-    if (dir != null && !Files.exists(dir)) Files.createDirectories(dir);
-
-    if (!Files.exists(usersPath)) {
-      String header = String.join("\t", HEADER) + "\n";
-      Files.writeString(
-          usersPath, header, StandardCharsets.UTF_8, java.nio.file.StandardOpenOption.CREATE_NEW);
-    }
+    return TAB_OR_NEWLINE.matcher(s).replaceAll(" ").trim();
   }
 }
