@@ -25,7 +25,11 @@ public final class UploadCommand implements Command {
     String name = opts.get("name");
     String file = opts.get("file");
 
-    if (id == null || id.isBlank() || name == null || name.isBlank() || file == null
+    if (id == null
+        || id.isBlank()
+        || name == null
+        || name.isBlank()
+        || file == null
         || file.isBlank()) {
       System.err.println("upload: missing required options --id, --name, --file");
       return 2;
