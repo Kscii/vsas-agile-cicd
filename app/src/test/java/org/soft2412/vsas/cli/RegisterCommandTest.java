@@ -104,4 +104,26 @@ public class RegisterCommandTest {
     String err = errBuf.toString(StandardCharsets.UTF_8);
     assertTrue(err.contains("missing required flags"));
   }
+
+  @Test
+  void register_missingIdKey_returnsNonZero() {
+    ByteArrayOutputStream outBuf = new ByteArrayOutputStream();
+    ByteArrayOutputStream errBuf = new ByteArrayOutputStream();
+    RegisterCommand cmd =
+        new RegisterCommand(new PrintStream(outBuf), new PrintStream(errBuf), new PasswordHasher());
+
+    int code =
+        cmd.run(
+            new String[] {
+              "--username", "alice",
+              "--password", "P@ssw0rd!",
+              "--email", "alice@example.com",
+              "--phone", "0400000000"
+              // missing --id-key
+            });
+
+    assertNotEquals(0, code);
+    String err = errBuf.toString(StandardCharsets.UTF_8);
+    assertTrue(err.contains("missing required flags"));
+  }
 }
