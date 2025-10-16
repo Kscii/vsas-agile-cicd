@@ -41,6 +41,11 @@ application {
     mainClass = 'org.soft2412.vsas.App'
 }
 
+tasks.named('run', JavaExec) {
+    // Keep the interactive shell attached to the invoking console.
+    standardInput = System.in
+}
+
 googleJavaFormat {
     toolVersion = "1.1"
 }

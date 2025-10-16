@@ -3,11 +3,128 @@
  */
 package org.soft2412.vsas;
 
-import org.soft2412.vsas.cli.CommandDispatcher;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 
 public final class App {
+  private final CommandInvoker dispatcher;
+
+  public App() {
+    this(new org.soft2412.vsas.cli.CommandDispatcher()::dispatch);
+  }
+
+  App(CommandInvoker dispatcher) {
+    this.dispatcher = dispatcher;
+  }
+
   public static void main(String[] args) {
-    int code = new CommandDispatcher().dispatch(args);
+    int code = new App().run(args, System.in, System.out, System.err);
     System.exit(code);
+  }
+
+  int run(String[] args, InputStream in, PrintStream out, PrintStream err) {
+    if (args != null && args.length > 0) {
+      return dispatcher.dispatch(args);
+    }
+    return runInteractive(in, out, err);
+  }
+
+  int runInteractive(InputStream in, PrintStream out, PrintStream err) {
+    BufferedReader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
+    int lastExitCode = 0;
+
+    while (true) {
+      out.print("vsas> ");
+      out.flush();
+
+      String line;
+      try {
+        line = reader.readLine();
+      } catch (IOException e) {
+        err.println("Failed to read input: " + e.getMessage());
+        return 1;
+      }
+
+      if (line == null) {
+        break;
+      }
+
+      String trimmed = line.trim();
+      if (trimmed.isEmpty()) {
+        continue;
+      }
+      if (trimmed.equalsIgnoreCase("exit") || trimmed.equalsIgnoreCase("quit")) {
+        break;
+      }
+
+      String[] tokens = tokenize(line);
+      if (tokens == null) {
+        err.println("Invalid input: unmatched quotes.");
+        lastExitCode = 2;
+        continue;
+      }
+      if (tokens.length == 0) {
+        continue;
+      }
+
+      int code = dispatcher.dispatch(tokens);
+      lastExitCode = code;
+    }
+
+    return lastExitCode;
+  }
+
+  @FunctionalInterface
+  interface CommandInvoker {
+    int dispatch(String[] args);
+  }
+
+  private static String[] tokenize(String line) {
+    List<String> tokens = new ArrayList<>();
+    StringBuilder current = new StringBuilder();
+    boolean inQuotes = false;
+
+    for (int i = 0; i < line.length(); i++) {
+      char c = line.charAt(i);
+
+      if (c == '\\' && i + 1 < line.length()) {
+        char next = line.charAt(i + 1);
+        if (next == '"' || next == '\\') {
+          current.append(next);
+          i++;
+          continue;
+        }
+      }
+
+      if (c == '"') {
+        inQuotes = !inQuotes;
+        continue;
+      }
+
+      if (Character.isWhitespace(c) && !inQuotes) {
+        if (current.length() > 0) {
+          tokens.add(current.toString());
+          current.setLength(0);
+        }
+      } else {
+        current.append(c);
+      }
+    }
+
+    if (inQuotes) {
+      return null;
+    }
+
+    if (current.length() > 0) {
+      tokens.add(current.toString());
+    }
+
+    return tokens.toArray(new String[0]);
   }
 }
