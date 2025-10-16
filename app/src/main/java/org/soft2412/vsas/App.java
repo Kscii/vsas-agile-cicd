@@ -3,6 +3,11 @@
  */
 package org.soft2412.vsas;
 
-public class App {
-  public static void main(String[] args) {}
+import org.soft2412.vsas.cli.CommandDispatcher;
+
+public final class App {
+  public static void main(String[] args) {
+    int code = new CommandDispatcher().dispatch(args);
+    System.exit(code);
+  }
 }
