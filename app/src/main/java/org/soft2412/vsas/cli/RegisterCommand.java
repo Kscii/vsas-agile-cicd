@@ -14,21 +14,20 @@ import org.soft2412.vsas.security.PasswordHasher;
 /**
  * Register a user by writing a TSV row with salted password hash.
  *
- * This command is limited to Task #39 scope:
- * - Generate per-user random salt (16 bytes).
- * - Compute SHA-256(salt || UTF-8(password)) as hex digest.
- * - Persist only passwordHash (hex) and salt (hex); never store plaintext.
- * - Create data/users.tsv if missing and ensure header exists.
+ * <p>This command is limited to Task #39 scope: - Generate per-user random salt (16 bytes). -
+ * Compute SHA-256(salt || UTF-8(password)) as hex digest. - Persist only passwordHash (hex) and
+ * salt (hex); never store plaintext. - Create data/users.tsv if missing and ensure header exists.
  *
- * It intentionally does NOT implement idKey uniqueness or full validation;
- * those belong to a different story/task.
+ * <p>It intentionally does NOT implement idKey uniqueness or full validation; those belong to a
+ * different story/task.
  */
 public final class RegisterCommand implements Command {
 
   private static final String DEFAULT_USERS_PATH = "data/users.tsv";
-  private static final String[] HEADER = new String[] {
-      "username", "email", "phone", "idKey", "role", "passwordHash", "salt", "createdAt"
-  };
+  private static final String[] HEADER =
+      new String[] {
+        "username", "email", "phone", "idKey", "role", "passwordHash", "salt", "createdAt"
+      };
   private static final Pattern TAB_OR_NEWLINE = Pattern.compile("[\\t\\r\\n]");
 
   private final PrintStream out;
@@ -56,28 +55,22 @@ public final class RegisterCommand implements Command {
     for (int i = 0; i < args.length; i++) {
       switch (args[i]) {
         case "--username":
-          if (i + 1 < args.length)
-            username = args[++i];
+          if (i + 1 < args.length) username = args[++i];
           break;
         case "--password":
-          if (i + 1 < args.length)
-            password = args[++i];
+          if (i + 1 < args.length) password = args[++i];
           break;
         case "--email":
-          if (i + 1 < args.length)
-            email = args[++i];
+          if (i + 1 < args.length) email = args[++i];
           break;
         case "--phone":
-          if (i + 1 < args.length)
-            phone = args[++i];
+          if (i + 1 < args.length) phone = args[++i];
           break;
         case "--id-key":
-          if (i + 1 < args.length)
-            idKey = args[++i];
+          if (i + 1 < args.length) idKey = args[++i];
           break;
         case "--role":
-          if (i + 1 < args.length)
-            role = args[++i];
+          if (i + 1 < args.length) role = args[++i];
           break;
         default:
           // ignore unknown flags for compatibility
@@ -85,8 +78,10 @@ public final class RegisterCommand implements Command {
     }
 
     // Explicit null/blank checks to silence static analysis and prevent misuse.
-    if (username == null || username.trim().isEmpty()
-        || password == null || password.trim().isEmpty()) {
+    if (username == null
+        || username.trim().isEmpty()
+        || password == null
+        || password.trim().isEmpty()) {
       err.println(
           "Error: missing required flags. Usage: vsas register --username <u> --password <p> [--email <e> --phone <ph> --id-key <k> --role <r>]");
       return 2;
@@ -113,12 +108,21 @@ public final class RegisterCommand implements Command {
 
       // Persist a single TSV row
       String createdAt = Instant.now().toString();
-      String row = String.join("\t",
-          nvl(username), nvl(email), nvl(phone), nvl(idKey), nvl(role),
-          hashHex, saltHex, createdAt) + "\n";
+      String row =
+          String.join(
+                  "\t",
+                  nvl(username),
+                  nvl(email),
+                  nvl(phone),
+                  nvl(idKey),
+                  nvl(role),
+                  hashHex,
+                  saltHex,
+                  createdAt)
+              + "\n";
 
-      Files.writeString(usersPath, row, StandardCharsets.UTF_8,
-          java.nio.file.StandardOpenOption.APPEND);
+      Files.writeString(
+          usersPath, row, StandardCharsets.UTF_8, java.nio.file.StandardOpenOption.APPEND);
 
       out.println("Registered user " + username);
       return 0;
@@ -126,8 +130,7 @@ public final class RegisterCommand implements Command {
       err.println("Error: cannot persist user");
       return 2;
     } finally {
-      if (pwdChars != null)
-        Arrays.fill(pwdChars, '\0'); // best-effort wipe
+      if (pwdChars != null) Arrays.fill(pwdChars, '\0'); // best-effort wipe
     }
   }
 
@@ -151,13 +154,12 @@ public final class RegisterCommand implements Command {
 
   private static void ensureHeader(Path usersPath) throws IOException {
     Path dir = usersPath.getParent();
-    if (dir != null && !Files.exists(dir))
-      Files.createDirectories(dir);
+    if (dir != null && !Files.exists(dir)) Files.createDirectories(dir);
 
     if (!Files.exists(usersPath)) {
       String header = String.join("\t", HEADER) + "\n";
-      Files.writeString(usersPath, header, StandardCharsets.UTF_8,
-          java.nio.file.StandardOpenOption.CREATE_NEW);
+      Files.writeString(
+          usersPath, header, StandardCharsets.UTF_8, java.nio.file.StandardOpenOption.CREATE_NEW);
     }
   }
 }
