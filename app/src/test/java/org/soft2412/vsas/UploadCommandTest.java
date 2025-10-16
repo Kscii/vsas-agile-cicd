@@ -12,12 +12,16 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.soft2412.vsas.cli.CommandDispatcher;
+import org.soft2412.vsas.model.User;
+import org.soft2412.vsas.service.SessionService;
 
 public class UploadCommandTest {
   private final PrintStream originalOut = System.out;
   private final PrintStream originalErr = System.err;
   private ByteArrayOutputStream out;
   private ByteArrayOutputStream err;
+  private String previousSessionProperty;
+  private Path sessionPath;
 
   @BeforeEach
   public void setup() throws IOException {
@@ -27,6 +31,9 @@ public class UploadCommandTest {
     System.setErr(new PrintStream(err));
     cleanupDataDir();
     Files.createDirectories(Path.of("data"));
+    previousSessionProperty = System.getProperty("vsas.session.path");
+    sessionPath = Path.of("data", "session.properties");
+    System.setProperty("vsas.session.path", sessionPath.toString());
   }
 
   @AfterEach
@@ -34,6 +41,11 @@ public class UploadCommandTest {
     System.setOut(originalOut);
     System.setErr(originalErr);
     cleanupDataDir();
+    if (previousSessionProperty == null) {
+      System.clearProperty("vsas.session.path");
+    } else {
+      System.setProperty("vsas.session.path", previousSessionProperty);
+    }
   }
 
   @Test
@@ -109,11 +121,8 @@ public class UploadCommandTest {
   }
 
   private void writeSession(String username, String idKey, String role) throws IOException {
-    Path data = Path.of("data");
-    Files.createDirectories(data);
-    String json =
-        "{\"username\":\"" + username + "\",\"idKey\":\"" + idKey + "\",\"role\":\"" + role + "\"}";
-    Files.writeString(data.resolve("session.json"), json, StandardCharsets.UTF_8);
+    SessionService sessions = new SessionService();
+    assertTrue(sessions.login(new User(username, "", "", idKey, role, "", "")), "session write");
   }
 
   private void cleanupDataDir() throws IOException {

@@ -1,10 +1,24 @@
 package org.soft2412.vsas.cli;
 
+import java.util.Objects;
+import org.soft2412.vsas.service.SessionService;
+
 public final class LogoutCommand implements Command {
+  private final SessionService sessions;
+
+  public LogoutCommand() {
+    this(new SessionService());
+  }
+
+  LogoutCommand(SessionService sessions) {
+    this.sessions = Objects.requireNonNull(sessions, "sessions");
+  }
+
   @Override
   public int run(String[] args) {
-    System.err.println("logout: not implemented");
-    return 2;
+    sessions.logout();
+    System.out.println("Logout success");
+    return 0;
   }
 
   @Override
