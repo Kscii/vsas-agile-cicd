@@ -1,0 +1,15 @@
+package org.soft2412.vsas.repo;
+
+import java.util.List;
+import java.util.Optional;
+import org.soft2412.vsas.model.Scroll;
+
+public interface ScrollRepository {
+  List<Scroll> findAll();
+
+  Optional<Scroll> findById(String id);
+
+  boolean existsId(String id);
+
+  boolean save(Scroll scroll);
+}
