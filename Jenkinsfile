@@ -23,13 +23,30 @@ pipeline {
       }
     }
 
+    stage('Format (verify)') {
+      steps {
+        echo 'Running google-java-format verify...'
+        script {
+          // Non-blocking mode: continue pipeline even if format check fails
+          def result = sh(script: './gradlew verifyGoogleJavaFormat --no-daemon', returnStatus: true)
+          if (result != 0) {
+            echo '⚠️ Code format check failed. Please run ./gradlew googleJavaFormat locally.'
+          } else {
+            echo '✅ Code format check passed.'
+          }
+
+          // To make this stage blocking (fail the pipeline on format errors), replace the above block with:
+          // sh './gradlew verifyGoogleJavaFormat --no-daemon'
+        }
+      }
+    }
+
     stage('Build') {
       steps {
         echo 'Building Gradle project...'
         sh '''
           chmod +x gradlew || true
-          ./gradlew --version
-          ./gradlew clean assemble -x verifyGoogleJavaFormat --no-daemon
+          ./gradlew clean assemble --no-daemon
         '''
       }
     }
@@ -37,7 +54,7 @@ pipeline {
     stage('Test') {
       steps {
         echo 'Running unit tests...'
-        sh './gradlew test -x verifyGoogleJavaFormat --no-daemon'
+        sh './gradlew test --no-daemon'
       }
       post {
         always {
