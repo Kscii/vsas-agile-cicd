@@ -7,7 +7,8 @@ public final class CommandDispatcher {
     if (args == null || args.length == 0) {
       System.out.println("Usage: vsas <command> [options]");
       System.out.println("Commands: register, login, logout, whoami, list, upload");
-      return 2;
+      // Return success for help/usage to allow `gradlew run` without args
+      return 0;
     }
     String cmd = args[0];
     String[] opts = Arrays.copyOfRange(args, 1, args.length);
