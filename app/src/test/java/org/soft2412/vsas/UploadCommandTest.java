@@ -54,7 +54,7 @@ public class UploadCommandTest {
     assertTrue(out.toString().contains("upload: success"));
 
     assertTrue(Files.exists(Path.of("data", "files", "s1.bin")));
-    assertTrue(Files.exists(Path.of("data", "scrolls", "s1.json")));
+    assertTrue(Files.exists(Path.of("data", "scrolls.tsv")));
   }
 
   @Test
