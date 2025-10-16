@@ -4,27 +4,28 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.soft2412.vsas.model.Scroll;
 
 public final class FileScrollRepository implements ScrollRepository {
-  private final Path metaDir = Path.of("data", "scrolls");
+  private final Path dataFile = Path.of("data", "scrolls.tsv");
 
   public FileScrollRepository() {}
 
   @Override
   public List<Scroll> findAll() {
     try {
-      if (!Files.exists(metaDir)) {
+      if (!Files.exists(dataFile)) {
         return List.of();
       }
+      List<String> lines = Files.readAllLines(dataFile, StandardCharsets.UTF_8);
       List<Scroll> result = new ArrayList<>();
-      for (Path p : Files.list(metaDir).toList()) {
-        if (p.getFileName().toString().endsWith(".json")) {
-          parseScroll(p).ifPresent(result::add);
-        }
+      for (String line : lines) {
+        if (line == null || line.isBlank()) continue;
+        parseTsv(line).ifPresent(result::add);
       }
       return result;
     } catch (IOException e) {
@@ -34,125 +35,85 @@ public final class FileScrollRepository implements ScrollRepository {
 
   @Override
   public Optional<Scroll> findById(String id) {
-    Path file = metaDir.resolve(id + ".json");
-    return parseScroll(file);
+    try {
+      if (!Files.exists(dataFile)) return Optional.empty();
+      for (String line : Files.readAllLines(dataFile, StandardCharsets.UTF_8)) {
+        if (line == null || line.isBlank()) continue;
+        String[] parts = line.split("\t", -1);
+        if (parts.length >= 6 && id.equals(parts[0])) {
+          return parseTsv(line);
+        }
+      }
+      return Optional.empty();
+    } catch (IOException e) {
+      return Optional.empty();
+    }
   }
 
   @Override
   public boolean existsId(String id) {
-    Path file = metaDir.resolve(id + ".json");
-    return Files.exists(file);
+    try {
+      if (!Files.exists(dataFile)) return false;
+      for (String line : Files.readAllLines(dataFile, StandardCharsets.UTF_8)) {
+        if (line == null || line.isBlank()) continue;
+        String[] parts = line.split("\t", -1);
+        if (parts.length >= 1 && id.equals(parts[0])) return true;
+      }
+      return false;
+    } catch (IOException e) {
+      return false;
+    }
   }
 
   @Override
   public boolean save(Scroll scroll) {
     try {
-      Files.createDirectories(metaDir);
-      Path file = metaDir.resolve(scroll.id() + ".json");
-      String json = toJson(scroll);
-      Files.writeString(file, json, StandardCharsets.UTF_8);
+      Files.createDirectories(dataFile.getParent());
+      String line = toTsv(scroll) + System.lineSeparator();
+      Files.writeString(
+          dataFile,
+          line,
+          StandardCharsets.UTF_8,
+          StandardOpenOption.CREATE,
+          StandardOpenOption.APPEND);
       return true;
     } catch (IOException e) {
       return false;
     }
   }
 
-  private Optional<Scroll> parseScroll(Path file) {
+  private Optional<Scroll> parseTsv(String line) {
     try {
-      if (!Files.exists(file)) return Optional.empty();
-      String s = Files.readString(file, StandardCharsets.UTF_8);
-      return Optional.of(fromJson(s));
-    } catch (IOException e) {
+      String[] p = line.split("\t", -1);
+      if (p.length < 6) return Optional.empty();
+      String id = p[0];
+      String name = p[1];
+      String uploaderIdKey = p[2];
+      String uploadDate = p[3];
+      String filePath = p[4];
+      long downloadCount = 0L;
+      try {
+        downloadCount = Long.parseLong(p[5]);
+      } catch (NumberFormatException ignore) {
+      }
+      return Optional.of(new Scroll(id, name, uploaderIdKey, uploadDate, filePath, downloadCount));
+    } catch (Exception e) {
       return Optional.empty();
     }
   }
 
-  // Very small JSON writer to avoid extra deps
-  private String toJson(Scroll s) {
-    return "{"
-        + "\"id\":\""
-        + escape(s.id())
-        + "\",\"name\":\""
-        + escape(s.name())
-        + "\",\"uploaderIdKey\":\""
-        + escape(s.uploaderIdKey())
-        + "\",\"uploadDate\":\""
-        + escape(s.uploadDate())
-        + "\",\"filePath\":\""
-        + escape(s.filePath())
-        + "\",\"downloadCount\":"
-        + s.downloadCount()
-        + "}";
+  private String toTsv(Scroll s) {
+    return String.join(
+        "\t",
+        nullToEmpty(s.id()),
+        nullToEmpty(s.name()),
+        nullToEmpty(s.uploaderIdKey()),
+        nullToEmpty(s.uploadDate()),
+        nullToEmpty(s.filePath()),
+        Long.toString(s.downloadCount()));
   }
 
-  private Scroll fromJson(String json) {
-    // Extremely small parser for the known shape
-    String id = extract(json, "id");
-    String name = extract(json, "name");
-    String uploaderIdKey = extract(json, "uploaderIdKey");
-    String uploadDate = extract(json, "uploadDate");
-    String filePath = extract(json, "filePath");
-    String dc = extract(json, "downloadCount");
-    long downloadCount = 0L;
-    try {
-      downloadCount = Long.parseLong(dc);
-    } catch (Exception ignore) {
-    }
-    return new Scroll(id, name, uploaderIdKey, uploadDate, filePath, downloadCount);
-  }
-
-  private String extract(String json, String key) {
-    // naive extraction: looks for "key": value (quoted or number)
-    String q = "\"" + key + "\"";
-    int i = json.indexOf(q);
-    if (i < 0) return "";
-    int colon = json.indexOf(":", i + q.length());
-    if (colon < 0) return "";
-    int start = colon + 1;
-    // skip spaces
-    while (start < json.length() && Character.isWhitespace(json.charAt(start))) start++;
-    if (start < json.length() && json.charAt(start) == '"') {
-      int end = start + 1;
-      StringBuilder sb = new StringBuilder();
-      for (; end < json.length(); end++) {
-        char c = json.charAt(end);
-        if (c == '\\') {
-          if (end + 1 < json.length()) {
-            char n = json.charAt(end + 1);
-            if (n == '"' || n == '\\' || n == '/') {
-              sb.append(n);
-              end++;
-            } else if (n == 'n') {
-              sb.append('\n');
-              end++;
-            } else if (n == 't') {
-              sb.append('\t');
-              end++;
-            } else if (n == 'r') {
-              sb.append('\r');
-              end++;
-            } else {
-              sb.append(n);
-              end++;
-            }
-          }
-        } else if (c == '"') {
-          break;
-        } else {
-          sb.append(c);
-        }
-      }
-      return sb.toString();
-    } else {
-      // number
-      int end = start;
-      while (end < json.length()
-          && (Character.isDigit(json.charAt(end)) || json.charAt(end) == '-')) end++;
-      return json.substring(start, end).trim();
-    }
-  }
-
-  private String escape(String s) {
-    return s.replace("\\", "\\\\").replace("\"", "\\\"");
+  private String nullToEmpty(String s) {
+    return s == null ? "" : s;
   }
 }
