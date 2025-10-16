@@ -1,0 +1,134 @@
+package org.soft2412.vsas;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.soft2412.vsas.cli.CommandDispatcher;
+
+public class UploadCommandTest {
+  private final PrintStream originalOut = System.out;
+  private final PrintStream originalErr = System.err;
+  private ByteArrayOutputStream out;
+  private ByteArrayOutputStream err;
+
+  @BeforeEach
+  public void setup() throws IOException {
+    out = new ByteArrayOutputStream();
+    err = new ByteArrayOutputStream();
+    System.setOut(new PrintStream(out));
+    System.setErr(new PrintStream(err));
+    cleanupDataDir();
+    Files.createDirectories(Path.of("data"));
+  }
+
+  @AfterEach
+  public void teardown() throws IOException {
+    System.setOut(originalOut);
+    System.setErr(originalErr);
+    cleanupDataDir();
+  }
+
+  @Test
+  public void uploadSuccess() throws IOException {
+    writeSession("alice", "u-123", "user");
+    Path tmp = Path.of("data", "tmp");
+    Files.createDirectories(tmp);
+    Path src = tmp.resolve("sample.bin");
+    Files.writeString(src, "hello", StandardCharsets.UTF_8);
+
+    int code =
+        new CommandDispatcher()
+            .dispatch(
+                new String[] {
+                  "upload", "--id", "s1", "--name", "My Scroll", "--file", src.toString()
+                });
+    assertEquals(0, code);
+    assertTrue(out.toString().contains("upload: success"));
+
+    assertTrue(Files.exists(Path.of("data", "files", "s1.bin")));
+    assertTrue(Files.exists(Path.of("data", "scrolls", "s1.json")));
+  }
+
+  @Test
+  public void uploadDuplicateIdFails() throws IOException {
+    writeSession("alice", "u-123", "user");
+    Path tmp = Path.of("data", "tmp");
+    Files.createDirectories(tmp);
+    Path src = tmp.resolve("sample.bin");
+    Files.writeString(src, "hello", StandardCharsets.UTF_8);
+
+    int first =
+        new CommandDispatcher()
+            .dispatch(
+                new String[] {"upload", "--id", "dup1", "--name", "A", "--file", src.toString()});
+    assertEquals(0, first);
+    out.reset();
+    err.reset();
+
+    int second =
+        new CommandDispatcher()
+            .dispatch(
+                new String[] {"upload", "--id", "dup1", "--name", "B", "--file", src.toString()});
+    assertEquals(2, second);
+    assertTrue(err.toString().contains("id already exists"));
+  }
+
+  @Test
+  public void uploadRequiresLogin() throws IOException {
+    // Ensure no session
+    cleanupDataDir();
+    Files.createDirectories(Path.of("data"));
+
+    int code =
+        new CommandDispatcher()
+            .dispatch(
+                new String[] {
+                  "upload", "--id", "s2", "--name", "N", "--file", "data/tmp/missing.bin"
+                });
+    assertEquals(2, code);
+    assertTrue(err.toString().contains("login required"));
+  }
+
+  @Test
+  public void uploadMissingFileFails() throws IOException {
+    writeSession("bob", "u-456", "user");
+    int code =
+        new CommandDispatcher()
+            .dispatch(
+                new String[] {"upload", "--id", "s3", "--name", "N", "--file", "no/such/file.bin"});
+    assertEquals(2, code);
+    assertTrue(err.toString().contains("file not found"));
+  }
+
+  private void writeSession(String username, String idKey, String role) throws IOException {
+    Path data = Path.of("data");
+    Files.createDirectories(data);
+    String json =
+        "{\"username\":\"" + username + "\",\"idKey\":\"" + idKey + "\",\"role\":\"" + role + "\"}";
+    Files.writeString(data.resolve("session.json"), json, StandardCharsets.UTF_8);
+  }
+
+  private void cleanupDataDir() throws IOException {
+    Path data = Path.of("data");
+    if (Files.exists(data)) {
+      // Recursively delete contents
+      Files.walk(data)
+          .sorted((a, b) -> b.getNameCount() - a.getNameCount())
+          .forEach(
+              p -> {
+                try {
+                  Files.deleteIfExists(p);
+                } catch (IOException ignore) {
+                }
+              });
+    }
+  }
+}
