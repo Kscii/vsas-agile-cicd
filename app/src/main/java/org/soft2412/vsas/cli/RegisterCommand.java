@@ -19,7 +19,7 @@ import org.soft2412.vsas.security.PasswordHasher;
  * salt; hash password via PasswordHasher; persist via UserRepository. - Never store plaintext
  * password. - Header/file creation is handled by the repository (TSV storage).
  *
- * <p>Uniqueness of idKey is NOT enforced here (Task #14).
+ * <p>Uniqueness of idKey is enforced by Task #14 (duplicate -> non-zero + clear error).
  */
 public final class RegisterCommand implements Command {
 
@@ -77,7 +77,7 @@ public final class RegisterCommand implements Command {
           /* ignore unknown for forward-compat */ }
     }
 
-    // Explicit null/blank checks (so static analysis can prove non-null)
+    // Explicit null/blank checks
     if (username == null
         || username.trim().isEmpty()
         || password == null
@@ -99,6 +99,16 @@ public final class RegisterCommand implements Command {
     phone = sanitize(phone);
     idKey = sanitize(idKey);
     role = (role == null || role.trim().isEmpty()) ? "USER" : sanitize(role);
+
+    // ---- Task #14: enforce unique idKey BEFORE hashing/persisting ----
+    try {
+      if (repo.existsIdKey(idKey)) {
+        err.println("Error: id-key already exists: " + idKey);
+        return 1; // non-zero per acceptance criteria
+      }
+    } catch (Exception ignored) {
+      // Repository interface doesn't throw checked exceptions; keep defensive catch.
+    }
 
     final String nonNullPassword = password; // proven non-null above
     char[] pwdChars = null;
