@@ -81,6 +81,7 @@ public final class PasswordHasher {
    * @return true if equal, false otherwise
    */
   public boolean constantTimeEquals(byte[] a, byte[] b) {
+    if (a == null || b == null) return false;
     return MessageDigest.isEqual(a, b);
   }
 

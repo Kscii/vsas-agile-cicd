@@ -74,4 +74,11 @@ public class PasswordHasherTest {
     byte[] back = PasswordHasher.hexToBytes(hex);
     assertArrayEquals(src, back);
   }
+
+  @Test
+  void constantTimeEquals_nullSafe() {
+    assertFalse(hasher.constantTimeEquals(null, new byte[0]));
+    assertFalse(hasher.constantTimeEquals(new byte[0], null));
+    assertFalse(hasher.constantTimeEquals(null, null));
+  }
 }
