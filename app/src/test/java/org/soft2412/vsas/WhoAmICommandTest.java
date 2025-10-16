@@ -5,17 +5,20 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.soft2412.vsas.cli.CommandDispatcher;
+import org.soft2412.vsas.model.User;
+import org.soft2412.vsas.service.SessionService;
 
 public class WhoAmICommandTest {
   private final PrintStream originalOut = System.out;
   private ByteArrayOutputStream out;
+  private String previousSessionProperty;
+  private Path sessionPath;
 
   @BeforeEach
   public void setup() throws IOException {
@@ -23,12 +26,20 @@ public class WhoAmICommandTest {
     System.setOut(new PrintStream(out));
     cleanupDataDir();
     Files.createDirectories(Path.of("data"));
+    sessionPath = Path.of("data", "session.properties");
+    previousSessionProperty = System.getProperty("vsas.session.path");
+    System.setProperty("vsas.session.path", sessionPath.toString());
   }
 
   @AfterEach
   public void teardown() throws IOException {
     System.setOut(originalOut);
     cleanupDataDir();
+    if (previousSessionProperty == null) {
+      System.clearProperty("vsas.session.path");
+    } else {
+      System.setProperty("vsas.session.path", previousSessionProperty);
+    }
   }
 
   @Test
@@ -47,11 +58,8 @@ public class WhoAmICommandTest {
   }
 
   private void writeSession(String username, String idKey, String role) throws IOException {
-    Path data = Path.of("data");
-    Files.createDirectories(data);
-    String json =
-        "{\"username\":\"" + username + "\",\"idKey\":\"" + idKey + "\",\"role\":\"" + role + "\"}";
-    Files.writeString(data.resolve("session.json"), json, StandardCharsets.UTF_8);
+    SessionService sessions = new SessionService();
+    assertTrue(sessions.login(new User(username, "", "", idKey, role, "", "")), "session write");
   }
 
   private void cleanupDataDir() throws IOException {
