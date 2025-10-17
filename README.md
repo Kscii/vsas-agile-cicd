@@ -8,7 +8,7 @@
 
 ./gradlew test jacocoTestReport
 
-> Reports: `build/reports/tests/test`, `build/reports/jacoco/test/html`
+> Reports: `app/build/reports/tests/test`, `app/build/reports/jacoco/test/html`
 
 ## Code Style (Google Java Format)
 

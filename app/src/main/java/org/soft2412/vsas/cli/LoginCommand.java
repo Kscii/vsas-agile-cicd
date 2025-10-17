@@ -72,7 +72,7 @@ public final class LoginCommand implements Command {
         || username.trim().isEmpty()
         || password == null
         || password.trim().isEmpty()) {
-      err.println("Error: missing required flags. Usage: vsas login --username <u> --password <p>");
+      err.println("Error: missing required flags. Usage: login --username <u> --password <p>");
       return 2;
     }
 
