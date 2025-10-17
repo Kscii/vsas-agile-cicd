@@ -89,7 +89,7 @@ public final class RegisterCommand implements Command {
         || idKey == null
         || idKey.trim().isEmpty()) {
       err.println(
-          "Error: missing required flags. Usage: vsas register --username <u> --password <p> --email <e> --phone <ph> --id-key <k>");
+          "Error: missing required flags. Usage: register --username <u> --password <p> --email <e> --phone <ph> --id-key <k>");
       return 2;
     }
 
