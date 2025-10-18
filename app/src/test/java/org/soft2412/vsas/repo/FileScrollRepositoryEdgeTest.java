@@ -12,8 +12,8 @@ import org.junit.jupiter.api.*;
 import org.soft2412.vsas.model.Scroll;
 
 /**
- * This test does NOT depend on fetchAll() because your FileScrollRepository
- * does not expose it. We verify behavior by reading the TSV file directly.
+ * This test does NOT depend on fetchAll() because your FileScrollRepository does not expose it. We
+ * verify behavior by reading the TSV file directly.
  */
 public class FileScrollRepositoryEdgeTest {
 
@@ -35,19 +35,19 @@ public class FileScrollRepositoryEdgeTest {
     if (Files.exists(dataDir)) {
       Files.walk(dataDir)
           .sorted((a, b) -> b.getNameCount() - a.getNameCount())
-          .forEach(p -> { try { Files.deleteIfExists(p); } catch (Exception ignore) {} });
+          .forEach(
+              p -> {
+                try {
+                  Files.deleteIfExists(p);
+                } catch (Exception ignore) {
+                }
+              });
     }
   }
 
   private static Scroll sc(String id, String name, String uploader, String filePath) {
     return new Scroll(
-        id,
-        name,
-        uploader,
-        Instant.parse("2025-01-01T00:00:00Z").toString(),
-        filePath,
-        0L
-    );
+        id, name, uploader, Instant.parse("2025-01-01T00:00:00Z").toString(), filePath, 0L);
   }
 
   @Test
@@ -61,10 +61,14 @@ public class FileScrollRepositoryEdgeTest {
     // Then: file created with at least one non-header line
     assertTrue(Files.exists(scrollsPath), "scrolls.tsv should be created on first save");
     String raw = Files.readString(scrollsPath, StandardCharsets.UTF_8);
-    long dataLines = Stream.of(raw.split("\\R"))
-        .filter(s -> !s.isBlank())
-        .filter(s -> !s.toLowerCase().startsWith("id") && !s.toLowerCase().startsWith("scroll")) // skip header if present
-        .count();
+    long dataLines =
+        Stream.of(raw.split("\\R"))
+            .filter(s -> !s.isBlank())
+            .filter(
+                s ->
+                    !s.toLowerCase().startsWith("id")
+                        && !s.toLowerCase().startsWith("scroll")) // skip header if present
+            .count();
     assertTrue(dataLines >= 1, "at least one data row should be written");
   }
 
@@ -75,26 +79,33 @@ public class FileScrollRepositoryEdgeTest {
 
     String raw = Files.readString(scrollsPath, StandardCharsets.UTF_8);
     // Collect data (non-header) lines in order
-    List<String> lines = Stream.of(raw.split("\\R"))
-        .filter(s -> !s.isBlank())
-        .filter(s -> {
-          String lower = s.toLowerCase();
-          return !(lower.startsWith("id") || lower.startsWith("scroll") || lower.startsWith("name") || lower.startsWith("uploader"));
-        })
-        .toList();
+    List<String> lines =
+        Stream.of(raw.split("\\R"))
+            .filter(s -> !s.isBlank())
+            .filter(
+                s -> {
+                  String lower = s.toLowerCase();
+                  return !(lower.startsWith("id")
+                      || lower.startsWith("scroll")
+                      || lower.startsWith("name")
+                      || lower.startsWith("uploader"));
+                })
+            .toList();
 
     assertEquals(2, lines.size(), "two appended data rows expected");
-    assertTrue(lines.get(0).startsWith("s1\t") || lines.get(0).contains("\ts1\t"),
+    assertTrue(
+        lines.get(0).startsWith("s1\t") || lines.get(0).contains("\ts1\t"),
         "first data row should correspond to s1");
-    assertTrue(lines.get(1).startsWith("s2\t") || lines.get(1).contains("\ts2\t"),
+    assertTrue(
+        lines.get(1).startsWith("s2\t") || lines.get(1).contains("\ts2\t"),
         "second data row should correspond to s2");
   }
 
   @Test
   void save_nullFields_writesEmptyCells() throws Exception {
     // name and filePath are null → should be written as empty TSV cells
-    Scroll x = new Scroll("s3", null, "U3",
-        Instant.parse("2025-02-02T00:00:00Z").toString(), null, 5L);
+    Scroll x =
+        new Scroll("s3", null, "U3", Instant.parse("2025-02-02T00:00:00Z").toString(), null, 5L);
 
     assertTrue(repo.save(x));
 
@@ -102,6 +113,8 @@ public class FileScrollRepositoryEdgeTest {
     // We expect something like: s3\t\tU3\t2025-02-02T00:00:00Z\t\t5
     assertTrue(raw.contains("s3\t"), "row should start with id s3 (or include it as a field)");
     assertTrue(raw.contains("\t\tU3"), "null name should produce an empty TSV cell before U3");
-    assertTrue(raw.contains("\t2025-02-02T00:00:00Z\t\t5"), "null filePath should produce another empty cell");
+    assertTrue(
+        raw.contains("\t2025-02-02T00:00:00Z\t\t5"),
+        "null filePath should produce another empty cell");
   }
 }
