@@ -27,16 +27,14 @@ pipeline {
       steps {
         echo 'Running google-java-format verify...'
         script {
-          // Non-blocking mode: continue pipeline even if format check fails
+          // Non-blocking: keep pipeline green even if format fails
           def result = sh(script: './gradlew verifyGoogleJavaFormat --no-daemon', returnStatus: true)
           if (result != 0) {
-            echo '⚠️ Code format check failed. Please run ./gradlew googleJavaFormat locally.'
+            echo '=( Code format check failed. Please run ./gradlew googleJavaFormat locally.'
           } else {
-            echo '✅ Code format check passed.'
+            echo '=) Code format check passed.'
           }
-
-          // To make this stage blocking (fail the pipeline on format errors), replace the above block with:
-          // sh './gradlew verifyGoogleJavaFormat --no-daemon'
+          // To make it blocking: sh './gradlew verifyGoogleJavaFormat --no-daemon'
         }
       }
     }
@@ -51,14 +49,38 @@ pipeline {
       }
     }
 
-    stage('Test') {
+    stage('Test & Coverage') {
       steps {
-        echo 'Running unit tests...'
-        sh './gradlew test --no-daemon'
+        echo 'Running unit tests and generating JaCoCo XML/HTML reports...'
+        sh './gradlew test jacocoTestReport --no-daemon'
       }
       post {
         always {
+          // (1) JUnit test results
           junit allowEmptyResults: true, testResults: '**/build/test-results/test/*.xml'
+
+          // (2) Coverage (Coverage plugin parses JaCoCo XML)
+          recordCoverage(
+            tools: [[parser: 'JACOCO', pattern: '**/build/reports/jacoco/test/jacocoTestReport.xml']],
+            sourceCodeRetention: 'LAST_BUILD',
+            // Optional quality gates (mark build "unstable" if thresholds not met)
+            qualityGates: [
+              [metric: 'LINE',   threshold: 60.0, baseline: 'PROJECT', unstable: true],
+              [metric: 'BRANCH', threshold: 60.0, baseline: 'PROJECT', unstable: true]
+            ]
+          )
+
+          // (3) Publish JaCoCo HTML report for detailed browsing
+          publishHTML(target: [
+            reportDir: 'build/reports/jacoco/test/html',
+            reportFiles: 'index.html',
+            reportName: 'JaCoCo HTML',
+            keepAll: true,
+            allowMissing: true
+          ])
+
+          // (4) Optionally archive coverage artifacts
+          archiveArtifacts artifacts: '**/build/reports/jacoco/test/**', allowEmptyArchive: true
         }
       }
     }
@@ -70,9 +92,7 @@ pipeline {
     }
 
     stage('Deploy') {
-      when {
-        branch 'main'
-      }
+      when { branch 'main' }
       steps {
         echo 'Deploying application...'
         sh 'echo "Deploy step placeholder. Add real deployment here if needed."'
@@ -81,11 +101,7 @@ pipeline {
   }
 
   post {
-    success {
-      echo 'Pipeline completed successfully.'
-    }
-    failure {
-      echo 'Pipeline failed.'
-    }
+    success { echo 'Pipeline completed successfully.' }
+    failure { echo 'Pipeline failed.' }
   }
 }
