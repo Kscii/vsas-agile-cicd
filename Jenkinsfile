@@ -15,7 +15,7 @@ pipeline {
     GITHUB_REPO  = 'A3-T28-G03'
 
     // If true, allow releases on non-main branches (for testing)
-    RELEASE_TEST_MODE = 'true'
+    RELEASE_TEST_MODE = 'false'
   }
 
   stages {
