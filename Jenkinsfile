@@ -8,12 +8,14 @@ pipeline {
 
   environment {
     GRADLE_USER_HOME = "${WORKSPACE}/.gradle-cache"
-    GITHUB_SERVER = 'https://github.sydney.edu.au/api/v3'
-    GH_HOST = 'github.sydney.edu.au'
-    REPO_SLUG = 'SOFT2412-COMP9412-2025s2/A3-T28-G03'
+
+    // --- GitHub repo info (adjust if your origin changes) ---
+    GITHUB_HOST  = 'github.sydney.edu.au'
+    GITHUB_OWNER = 'SOFT2412-COMP9412-2025s2'
+    GITHUB_REPO  = 'A3-T28-G03'
+
+    // If true, allow releases on non-main branches (for testing)
     RELEASE_TEST_MODE = 'true'
-    GIT_AUTHOR_NAME = 'xfan0282'
-    GIT_AUTHOR_EMAIL = 'xfan0282@uni.sydney.edu.au'
   }
 
   stages {
@@ -78,6 +80,7 @@ pipeline {
       post {
         always {
           junit allowEmptyResults: true, testResults: '**/build/test-results/test/*.xml'
+
           recordCoverage(
             tools: [[parser: 'JACOCO', pattern: '**/build/reports/jacoco/test/jacocoTestReport.xml']],
             sourceCodeRetention: 'LAST_BUILD',
@@ -87,6 +90,7 @@ pipeline {
               [metric: 'BRANCH', threshold: 60.0, baseline: 'PROJECT']
             ]
           )
+
           publishHTML(target: [
             reportDir: 'app/build/reports/jacoco/test/html',
             reportFiles: 'index.html',
@@ -94,6 +98,7 @@ pipeline {
             keepAll: true,
             allowMissing: true
           ])
+
           archiveArtifacts artifacts: '**/build/reports/jacoco/test/**', allowEmptyArchive: true
         }
       }
@@ -113,140 +118,120 @@ pipeline {
       }
     }
 
+    // ===== Release section (tag + GitHub Release via gh) =====
     stage('Release (tag + GitHub release via gh)') {
       when {
-        anyOf {
-          branch 'main'
-          expression { return env.RELEASE_TEST_MODE == 'true' }
+        expression {
+          // allow on main; or allow on any branch if RELEASE_TEST_MODE=true
+          return (env.BRANCH_NAME == 'main') || (env.RELEASE_TEST_MODE?.toBoolean())
         }
       }
+      environment {
+        GH_HOST = "${GITHUB_HOST}" // gh respects GH_HOST to target the enterprise host
+      }
       steps {
-        withCredentials([
-          usernamePassword(credentialsId: 'ghe_https_pat', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN'),
-          string(credentialsId: 'ghe_pat_secret', variable: 'GITHUB_PAT')
-        ]) {
+        withCredentials([string(credentialsId: 'ghe_pat_secret', variable: 'GITHUB_PAT')]) {
           sh '''
             set -euo pipefail
 
-            # Ensure gh is installed
-            if ! command -v gh >/dev/null 2>&1; then
-              echo "[INFO] gh not found, installing..."
-              apt-get update
-              apt-get install -y curl ca-certificates gnupg >/dev/null
-              curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
-                | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
-              chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
-              echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
-                > /etc/apt/sources.list.d/github-cli.list
-              apt-get update
-              apt-get install -y gh
-            fi
-
-            # Configure git user for annotated tags
-            git config user.name  "${GIT_AUTHOR_NAME}"
-            git config user.email "${GIT_AUTHOR_EMAIL}"
-
-            # Use HTTPS with PAT for pushing tags
-            git remote set-url origin "https://$GIT_USER:$GIT_TOKEN@github.sydney.edu.au/${REPO_SLUG}.git"
+            # Ensure we can fetch/push with PAT over HTTPS
+            git remote set-url origin "https://${GIT_USERNAME:-${USER:-jenkins}}:${GITHUB_PAT}@${GITHUB_HOST}/${GITHUB_OWNER}/${GITHUB_REPO}.git"
             git fetch --tags --prune
-            [ -e .git/shallow ] && git fetch --unshallow || true
 
-            # Determine major version
-            if [ ! -f VERSION_MAJOR ]; then echo "1" > VERSION_MAJOR; fi
-            MAJOR=$(tr -d "\\n\\r" < VERSION_MAJOR)
-            case "$MAJOR" in ''|*[!0-9]*) echo "Invalid VERSION_MAJOR: $MAJOR" >&2; exit 2 ;; esac
+            git config user.name "xfan0282"
+            git config user.email "xfan0282@uni.sydney.edu.au"
 
-            # Previous tag and prefix
-            LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
-            if [ -z "$LAST_TAG" ]; then
-              MINOR=0; PATCH=0; TAG_PREFIX="v"; RANGE_OPT=""
+            # Read MAJOR from file; fallback to 1 if missing
+            if [ -f VERSION_MAJOR ]; then
+              MAJOR="$(tr -d '\\n\\r' < VERSION_MAJOR)"
             else
-              VT=$(printf "%s" "$LAST_TAG" | sed -E 's/^[^0-9]*([0-9].*)/\\1/')
-              LT_MAJOR=$(printf "%s" "$VT" | cut -d. -f1)
-              LT_MINOR=$(printf "%s" "$VT" | cut -d. -f2)
-              LT_PATCH=$(printf "%s" "$VT" | cut -d. -f3)
-              if [ "$LT_MAJOR" != "$MAJOR" ]; then MINOR=0; PATCH=0; else MINOR=$LT_MINOR; PATCH=$LT_PATCH; fi
-              echo "$LAST_TAG" | grep -q '^[V]' && TAG_PREFIX="V" || TAG_PREFIX="v"
-              RANGE_OPT="$LAST_TAG..HEAD"
+              MAJOR="1"
             fi
 
-            HEAD_SHA=$(git rev-parse HEAD)
+            LAST_TAG="$(git describe --tags --abbrev=0 || true)"
+            if [ -z "${LAST_TAG}" ]; then
+              LT_MAJOR="0"; LT_MINOR="0"; LT_PATCH="0"; TAG_PREFIX="V"; RANGE_OPT=""
+            else
+              # Normalize like: V1.8.4 -> 1.8.4
+              VT="$(printf %s "${LAST_TAG}" | sed -E 's/^[^0-9]*([0-9].*)/\\1/')"
+              LT_MAJOR="$(printf %s "${VT}" | cut -d. -f1)"
+              LT_MINOR="$(printf %s "${VT}" | cut -d. -f2)"
+              LT_PATCH="$(printf %s "${VT}" | cut -d. -f3)"
+              printf %s "${LAST_TAG}" | grep -q '^[V]' && TAG_PREFIX='V' || TAG_PREFIX='v'
+              RANGE_OPT="${LAST_TAG}..HEAD"
+            fi
 
-            # Derive source branch via API first, fallback to merge subject
-            SRC_BRANCH=""
-            for DELAY in 1 2 4; do
-              RESP=$(curl -sS -H "Authorization: token $GITHUB_PAT" -H "Accept: application/vnd.github+json" \
-                "$GITHUB_SERVER/repos/$REPO_SLUG/commits/$HEAD_SHA/pulls" || true)
-              SRC_BRANCH=$(printf "%s" "$RESP" | sed -n 's/.*"head":{[^}]*"ref":"\\([^"]*\\)".*/\\1/p' | head -n1)
-              [ -n "$SRC_BRANCH" ] && break
-              sleep "$DELAY"
-            done
-            if [ -z "$SRC_BRANCH" ]; then
-              MERGE_SUBJ=$(git log -1 --pretty=%s || true)
-              if printf "%s" "$MERGE_SUBJ" | grep -Eiq '^Merge pull request #[0-9]+'; then
-                SRC_BRANCH=$(printf "%s" "$MERGE_SUBJ" | sed -n 's#.* from [^/]*/\\([^ )]*\\).*#\\1#p')
+            # If MAJOR bumped, reset minor/patch
+            if [ "${LT_MAJOR}" != "${MAJOR}" ]; then
+              MINOR=0
+              PATCH=0
+            else
+              # Determine bump by PR source branch (API-first) or fallback to commit subject
+              HEAD_SHA="$(git rev-parse HEAD)"
+              SRC_BRANCH=""
+              for i in 1 2 4; do
+                RESP="$(curl -sS -H "Authorization: token ${GITHUB_PAT}" -H "Accept: application/vnd.github+json" \
+                  "https://${GITHUB_HOST}/api/v3/repos/${GITHUB_OWNER}/${GITHUB_REPO}/commits/${HEAD_SHA}/pulls")" || true
+                SRC_BRANCH="$(printf %s "${RESP}" | sed -n 's/.*"head":{[^}]*"ref":"\\([^"]*\\)".*/\\1/p' | head -n1)"
+                [ -n "${SRC_BRANCH}" ] && break || sleep "${i}"
+              done
+
+              MERGE_SUBJ="$(git log -1 --pretty=%s)"
+              if printf %s "${SRC_BRANCH:-}" | grep -Eiq '^(feat|feature)(/|-)'; then
+                # feature -> minor++
+                MINOR=$((LT_MINOR + 1))
+                PATCH=0
+              elif printf %s "${MERGE_SUBJ}" | grep -Eiq '^Merge pull request #[0-9]+' && \
+                   printf %s "${MERGE_SUBJ}" | grep -Eiq '(feat|feature)'; then
+                MINOR=$((LT_MINOR + 1))
+                PATCH=0
+              else
+                # default -> patch++
+                MINOR="${LT_MINOR}"
+                PATCH=$((LT_PATCH + 1))
               fi
             fi
 
-            # Bump rule: feature/feat -> minor++; else patch++
-            if [ -z "$SRC_BRANCH" ]; then
-              echo "WARN: cannot determine PR source branch; default to patch bump"
-              IS_FEAT=0
-            else
-              echo "Detected source branch: $SRC_BRANCH"
-              echo "$SRC_BRANCH" | grep -Eiq '^(feat|feature)/' && IS_FEAT=1 || IS_FEAT=0
-            fi
-            if [ "$IS_FEAT" = 1 ]; then
-              MINOR=$((MINOR+1)); PATCH=0
-            else
-              PATCH=$((PATCH+1))
-            fi
-
             NEXT_VERSION="${TAG_PREFIX}${MAJOR}.${MINOR}.${PATCH}"
-            echo "$NEXT_VERSION" | tee next-version.txt
+            echo "${NEXT_VERSION}" | tee next-version.txt
 
-            # Tag if not exists
-            if git rev-parse -q --verify "refs/tags/$NEXT_VERSION" >/dev/null; then
-              echo "Tag $NEXT_VERSION already exists, skip tagging."
-            else
-              git tag -a "$NEXT_VERSION" -m "Release $NEXT_VERSION (automated by Jenkins)"
-              git push origin "$NEXT_VERSION"
+            # Create annotated tag if not exists, then push
+            if ! git rev-parse -q --verify "refs/tags/${NEXT_VERSION}" >/dev/null; then
+              git tag -a "${NEXT_VERSION}" -m "Release ${NEXT_VERSION} (automated by Jenkins)"
+              git push origin "${NEXT_VERSION}"
             fi
 
-            # Prepare changelog text file
-            if [ -n "$RANGE_OPT" ]; then
-              git log --no-merges --pretty="* %h %s (%an)" $RANGE_OPT > CHANGELOG.txt
+            # Build changelog file (only if there are commits since last tag)
+            if [ -n "${RANGE_OPT}" ]; then
+              {
+                echo "Changes since ${LAST_TAG}:"
+                echo
+                git log --no-merges --pretty='* %h %s (%an)' "${RANGE_OPT}" || true
+              } > CHANGELOG.txt
             else
-              git log -1 --pretty="* %h %s (%an)" > CHANGELOG.txt
+              echo "Initial release." > CHANGELOG.txt
             fi
 
-            # gh auth (GHES)
-            export GH_TOKEN="$GITHUB_PAT"
-            echo "$GITHUB_PAT" | gh auth login --hostname "$GH_HOST" --with-token
+            # Use GitHub CLI with token via env; no interactive login needed
+            export GH_TOKEN="${GITHUB_PAT}"
+            export GH_HOST="${GITHUB_HOST}"
 
-            # Create or update release via gh
-            if gh release view "$NEXT_VERSION" --repo "$REPO_SLUG" --hostname "$GH_HOST" >/dev/null 2>&1; then
-              gh release edit "$NEXT_VERSION" \
-                --repo "$REPO_SLUG" \
-                --hostname "$GH_HOST" \
-                --title "$NEXT_VERSION" \
+            # If release already exists, skip; else create
+            if gh release view "${NEXT_VERSION}" -R "${GITHUB_OWNER}/${GITHUB_REPO}" >/dev/null 2>&1; then
+              echo "Release ${NEXT_VERSION} already exists. Skipping creation."
+            else
+              gh release create "${NEXT_VERSION}" \
+                -R "${GITHUB_OWNER}/${GITHUB_REPO}" \
+                --target "${HEAD_SHA}" \
+                --title "${NEXT_VERSION}" \
                 --notes-file CHANGELOG.txt
-            else
-              gh release create "$NEXT_VERSION" \
-                --repo "$REPO_SLUG" \
-                --hostname "$GH_HOST" \
-                --target "$HEAD_SHA" \
-                --title "$NEXT_VERSION" \
-                --notes-file CHANGELOG.txt
+              echo "Release ${NEXT_VERSION} created via gh."
             fi
 
-            # Optional: upload build artifacts as release assets
-            if ls app/build/distributions/* >/dev/null 2>&1; then
-              gh release upload "$NEXT_VERSION" app/build/distributions/* \
-                --repo "$REPO_SLUG" --hostname "$GH_HOST" --clobber || true
-            fi
+            # Archive helper artifacts
+            :
           '''
-          archiveArtifacts artifacts: 'next-version.txt', fingerprint: true, allowEmptyArchive: false
+          archiveArtifacts artifacts: 'next-version.txt, CHANGELOG.txt', allowEmptyArchive: true
         }
       }
     }
