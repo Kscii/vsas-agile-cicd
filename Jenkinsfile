@@ -110,6 +110,7 @@ pipeline {
       }
     }
 
+    // ------ Dry-run 计算版本（非 main） ------
     stage('Calculate Next Version (dry-run)') {
       when { not { branch 'main' } }
       environment {
@@ -117,9 +118,17 @@ pipeline {
         REPO_SLUG     = 'SOFT2412-COMP9412-2025s2/A3-T28-G03'
       }
       steps {
-        withCredentials([string(credentialsId: 'ghe_pat_secret', variable: 'GITHUB_PAT')]) {
+        withCredentials([
+          // 用于 Git fetch/push 的 HTTPS 账户+PAT（同你的 checkout 用的）
+          usernamePassword(credentialsId: 'ghe_https_pat', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN'),
+          // 用于调用 GitHub API 的 PAT（Secret text）
+          string(credentialsId: 'ghe_pat_secret', variable: 'GITHUB_PAT')
+        ]) {
           sh '''
             set -euo pipefail
+
+            # 确保 origin 可认证（和 checkout 相同的凭据）
+            git remote set-url origin "https://$GIT_USER:$GIT_TOKEN@github.sydney.edu.au/$REPO_SLUG.git"
 
             git fetch --tags --prune
             [ -e .git/shallow ] && git fetch --unshallow || true
@@ -146,6 +155,7 @@ pipeline {
             HEAD_SHA=$(git rev-parse HEAD)
             SRC_BRANCH=""
 
+            # API 优先，3 次重试
             for i in 1 2 3; do
               RESP=$(curl -sS -H "Authorization: token $GITHUB_PAT" -H "Accept: application/vnd.github+json" \
                 "$GITHUB_SERVER/repos/$REPO_SLUG/commits/$HEAD_SHA/pulls" || true)
@@ -154,6 +164,7 @@ pipeline {
               sleep $((2**i))
             done
 
+            # 标题兜底
             if [ -z "$SRC_BRANCH" ]; then
               MERGE_SUBJ=$(git log -1 --pretty=%s || true)
               if echo "$MERGE_SUBJ" | grep -Eiq '^Merge pull request #[0-9]+'; then
