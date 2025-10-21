@@ -10,6 +10,7 @@ pipeline {
     GRADLE_USER_HOME = "${WORKSPACE}/.gradle-cache"
     GITHUB_SERVER = 'https://github.sydney.edu.au/api/v3'
     REPO_SLUG     = 'SOFT2412-COMP9412-2025s2/A3-T28-G03'
+    RELEASE_TEST_MODE = 'true'
   }
 
   stages {
@@ -74,7 +75,6 @@ pipeline {
       post {
         always {
           junit allowEmptyResults: true, testResults: '**/build/test-results/test/*.xml'
-
           recordCoverage(
             tools: [[parser: 'JACOCO', pattern: '**/build/reports/jacoco/test/jacocoTestReport.xml']],
             sourceCodeRetention: 'LAST_BUILD',
@@ -84,7 +84,6 @@ pipeline {
               [metric: 'BRANCH', threshold: 60.0, baseline: 'PROJECT']
             ]
           )
-
           publishHTML(target: [
             reportDir: 'app/build/reports/jacoco/test/html',
             reportFiles: 'index.html',
@@ -92,7 +91,6 @@ pipeline {
             keepAll: true,
             allowMissing: true
           ])
-
           archiveArtifacts artifacts: '**/build/reports/jacoco/test/**', allowEmptyArchive: true
         }
       }
@@ -112,81 +110,13 @@ pipeline {
       }
     }
 
-    // --- Dry-run for non-main branches (kept from Commit 2) ---
-    stage('Calculate Next Version (dry-run)') {
-      when { not { branch 'main' } }
-      steps {
-        withCredentials([
-          usernamePassword(credentialsId: 'ghe_https_pat', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN'),
-          string(credentialsId: 'ghe_pat_secret', variable: 'GITHUB_PAT')
-        ]) {
-          sh '''
-            set -euo pipefail
-
-            git remote set-url origin "https://$GIT_USER:$GIT_TOKEN@github.sydney.edu.au/$REPO_SLUG.git"
-            git fetch --tags --prune
-            [ -e .git/shallow ] && git fetch --unshallow || true
-
-            if [ ! -f VERSION_MAJOR ]; then echo "1" > VERSION_MAJOR; fi
-            MAJOR=$(tr -d "\\n\\r" < VERSION_MAJOR)
-            case "$MAJOR" in ''|*[!0-9]*) echo "Invalid VERSION_MAJOR: $MAJOR" >&2; exit 2 ;; esac
-
-            LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
-            if [ -z "$LAST_TAG" ]; then
-              MINOR=0; PATCH=0; TAG_PREFIX="v"
-            else
-              VT=$(printf "%s" "$LAST_TAG" | sed -E 's/^[^0-9]*([0-9].*)/\\1/')
-              LT_MAJOR=$(printf "%s" "$VT" | cut -d. -f1)
-              LT_MINOR=$(printf "%s" "$VT" | cut -d. -f2)
-              LT_PATCH=$(printf "%s" "$VT" | cut -d. -f3)
-              [ "$LT_MAJOR" != "$MAJOR" ] && { MINOR=0; PATCH=0; } || { MINOR=$LT_MINOR; PATCH=$LT_PATCH; }
-              echo "$LAST_TAG" | grep -q '^[V]' && TAG_PREFIX="V" || TAG_PREFIX="v"
-            fi
-
-            HEAD_SHA=$(git rev-parse HEAD)
-            SRC_BRANCH=""
-
-            for DELAY in 1 2 4; do
-              RESP=$(curl -sS -H "Authorization: token $GITHUB_PAT" -H "Accept: application/vnd.github+json" \
-                "$GITHUB_SERVER/repos/$REPO_SLUG/commits/$HEAD_SHA/pulls" || true)
-              SRC_BRANCH=$(printf "%s" "$RESP" | sed -n 's/.*"head":{[^}]*"ref":"\\([^"]*\\)".*/\\1/p' | head -n1)
-              [ -n "$SRC_BRANCH" ] && break
-              sleep "$DELAY"
-            done
-
-            if [ -z "$SRC_BRANCH" ]; then
-              MERGE_SUBJ=$(git log -1 --pretty=%s || true)
-              if printf "%s" "$MERGE_SUBJ" | grep -Eiq '^Merge pull request #[0-9]+'; then
-                SRC_BRANCH=$(printf "%s" "$MERGE_SUBJ" | sed -n 's#.* from [^/]*/\\([^ )]*\\).*#\\1#p')
-              fi
-            fi
-
-            if [ -z "$SRC_BRANCH" ]; then
-              echo "WARN: cannot determine PR source branch; default to patch bump"
-              IS_FEAT=0
-            else
-              echo "Detected source branch: $SRC_BRANCH"
-              echo "$SRC_BRANCH" | grep -Eiq '^(feat|feature)/' && IS_FEAT=1 || IS_FEAT=0
-            fi
-
-            if [ "$IS_FEAT" = 1 ]; then
-              MINOR=$((MINOR+1)); PATCH=0
-            else
-              PATCH=$((PATCH+1))
-            fi
-
-            NEXT_VERSION="${TAG_PREFIX}${MAJOR}.${MINOR}.${PATCH}"
-            echo "$NEXT_VERSION" | tee next-version.txt
-          '''
-          archiveArtifacts artifacts: 'next-version.txt', fingerprint: true, allowEmptyArchive: false
-          echo 'Dry-run only: calculated next version (see next-version.txt)'
+    stage('Release (tag + GitHub release)') {
+      when {
+        anyOf {
+          branch 'main'
+          expression { return env.RELEASE_TEST_MODE == 'true' }
         }
       }
-    }
-
-    // --- Real tag & GitHub release for main ---
-    stage('Release (tag + GitHub release)') {
-      when { branch 'main' }
       steps {
         withCredentials([
           usernamePassword(credentialsId: 'ghe_https_pat', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN'),
