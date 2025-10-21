@@ -67,8 +67,10 @@ pipeline {
       steps {
         echo 'Building Gradle project...'
         sh '''
+          set -e
           chmod +x gradlew || true
-          ./gradlew --no-daemon -g "$GRADLE_USER_HOME" clean assemble
+          # build regular jars and the fat/uber jar
+          ./gradlew --no-daemon -g "$GRADLE_USER_HOME" clean assemble shadowJar
         '''
       }
     }
@@ -83,7 +85,7 @@ pipeline {
           // JUnit test results
           junit allowEmptyResults: true, testResults: '**/build/test-results/test/*.xml'
 
-          // Coverage (use legacy map form for broad plugin compatibility; guard with try/catch)
+          // Coverage (guard for plugin differences)
           script {
             try {
               recordCoverage(
@@ -113,7 +115,8 @@ pipeline {
 
     stage('Archive') {
       steps {
-        archiveArtifacts artifacts: '**/build/libs/*.jar', fingerprint: true, onlyIfSuccessful: true
+        // keep both regular and fat jars
+        archiveArtifacts artifacts: 'app/build/libs/*.jar, app/build/libs/*-all.jar', fingerprint: true, onlyIfSuccessful: true
       }
     }
 
@@ -229,6 +232,16 @@ pipeline {
                 --title "${NEXT_VERSION}" \
                 --notes-file CHANGELOG.txt
               echo "Release ${NEXT_VERSION} created via gh."
+            fi
+
+            # Upload fat/uber jar if present (keep default source archives)
+            JAR_GLOB='app/build/libs/*-all.jar'
+            if ls ${JAR_GLOB} >/dev/null 2>&1; then
+              echo "Uploading fat jar(s):"
+              ls -lh ${JAR_GLOB} || true
+              gh release upload "${NEXT_VERSION}" ${JAR_GLOB} -R "${GITHUB_OWNER}/${GITHUB_REPO}" --clobber
+            else
+              echo "No fat jar found at ${JAR_GLOB}; skip upload."
             fi
           '''
           archiveArtifacts artifacts: 'next-version.txt, CHANGELOG.txt', allowEmptyArchive: true

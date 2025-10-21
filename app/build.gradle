@@ -11,6 +11,7 @@ plugins {
     id 'application'
     id 'jacoco'
     id 'com.github.sherter.google-java-format' version '0.9'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
 }
 
 repositories {
@@ -61,4 +62,15 @@ jacocoTestReport {
         xml.required = true
         html.required = true
     }
+}
+
+// Ensure runnable manifest and produce fat JAR with classifier "-all"
+jar {
+    manifest {
+        attributes('Main-Class': application.mainClass.get())
+    }
+}
+
+tasks.named('shadowJar') {
+    archiveClassifier.set('all')
 }
