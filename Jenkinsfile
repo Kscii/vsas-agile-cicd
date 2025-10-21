@@ -3,12 +3,18 @@ pipeline {
   options {
     timestamps()
     buildDiscarder(logRotator(numToKeepStr: '20'))
+    skipDefaultCheckout(true)
+  }
+
+  environment {
+    GRADLE_USER_HOME = "${WORKSPACE}/.gradle-cache"
   }
 
   stages {
     stage('Checkout') {
       steps {
         echo "Checking out branch: ${env.BRANCH_NAME}"
+        deleteDir()
         checkout scm
       }
     }
@@ -19,6 +25,17 @@ pipeline {
           echo "== PWD ==" && pwd
           echo "== Root listing ==" && ls -la
           echo "== Wrapper listing ==" && ls -la gradlew gradle/wrapper || true
+          echo "== GRADLE_USER_HOME ==" && echo "$GRADLE_USER_HOME"
+        '''
+      }
+    }
+
+    stage('Prepare Gradle cache') {
+      steps {
+        sh '''
+          set -e
+          mkdir -p "$GRADLE_USER_HOME"
+          chmod -R u+rwX "$GRADLE_USER_HOME" || true
         '''
       }
     }
@@ -27,14 +44,12 @@ pipeline {
       steps {
         echo 'Running google-java-format verify...'
         script {
-          // Non-blocking: keep pipeline green even if format fails
-          def result = sh(script: './gradlew verifyGoogleJavaFormat --no-daemon', returnStatus: true)
+          def result = sh(script: './gradlew --no-daemon -g "$GRADLE_USER_HOME" verifyGoogleJavaFormat', returnStatus: true)
           if (result != 0) {
             echo '=( Code format check failed. Please run ./gradlew googleJavaFormat locally.'
           } else {
             echo '=) Code format check passed.'
           }
-          // To make it blocking: sh './gradlew verifyGoogleJavaFormat --no-daemon'
         }
       }
     }
@@ -44,7 +59,7 @@ pipeline {
         echo 'Building Gradle project...'
         sh '''
           chmod +x gradlew || true
-          ./gradlew clean assemble --no-daemon
+          ./gradlew --no-daemon -g "$GRADLE_USER_HOME" clean assemble
         '''
       }
     }
@@ -52,34 +67,30 @@ pipeline {
     stage('Test & Coverage') {
       steps {
         echo 'Running unit tests and generating JaCoCo XML/HTML reports...'
-        sh './gradlew test jacocoTestReport --no-daemon'
+        sh './gradlew --no-daemon -g "$GRADLE_USER_HOME" test jacocoTestReport'
       }
       post {
         always {
-          // (1) JUnit test results
           junit allowEmptyResults: true, testResults: '**/build/test-results/test/*.xml'
 
-          // (2) Coverage (Coverage plugin parses JaCoCo XML)
           recordCoverage(
             tools: [[parser: 'JACOCO', pattern: '**/build/reports/jacoco/test/jacocoTestReport.xml']],
             sourceCodeRetention: 'LAST_BUILD',
-            // Optional quality gates (mark build "unstable" if thresholds not met)
+            sourceDirectories: [[path: 'app/src/main/java'], [path: 'app/src/test/java']],
             qualityGates: [
-              [metric: 'LINE',   threshold: 60.0, baseline: 'PROJECT', unstable: true],
-              [metric: 'BRANCH', threshold: 60.0, baseline: 'PROJECT', unstable: true]
+              [metric: 'LINE',   threshold: 60.0, baseline: 'PROJECT'],
+              [metric: 'BRANCH', threshold: 60.0, baseline: 'PROJECT']
             ]
           )
 
-          // (3) Publish JaCoCo HTML report for detailed browsing
           publishHTML(target: [
-            reportDir: 'build/reports/jacoco/test/html',
+            reportDir: 'app/build/reports/jacoco/test/html',
             reportFiles: 'index.html',
             reportName: 'JaCoCo HTML',
             keepAll: true,
             allowMissing: true
           ])
 
-          // (4) Optionally archive coverage artifacts
           archiveArtifacts artifacts: '**/build/reports/jacoco/test/**', allowEmptyArchive: true
         }
       }
