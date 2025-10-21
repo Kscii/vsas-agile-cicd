@@ -76,14 +76,15 @@ pipeline {
           recordCoverage(
             tools: [[parser: 'JACOCO', pattern: '**/build/reports/jacoco/test/jacocoTestReport.xml']],
             sourceCodeRetention: 'LAST_BUILD',
+            sourceDirectories: [[path: 'app/src/main/java'], [path: 'app/src/test/java']],
             qualityGates: [
-              [metric: 'LINE',   threshold: 60.0, baseline: 'PROJECT', unstable: true],
-              [metric: 'BRANCH', threshold: 60.0, baseline: 'PROJECT', unstable: true]
+              [metric: 'LINE',   threshold: 60.0, baseline: 'PROJECT'],
+              [metric: 'BRANCH', threshold: 60.0, baseline: 'PROJECT']
             ]
           )
 
           publishHTML(target: [
-            reportDir: 'build/reports/jacoco/test/html',
+            reportDir: 'app/build/reports/jacoco/test/html',
             reportFiles: 'index.html',
             reportName: 'JaCoCo HTML',
             keepAll: true,
