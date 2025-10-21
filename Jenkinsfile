@@ -10,7 +10,7 @@ pipeline {
     GRADLE_USER_HOME = "${WORKSPACE}/.gradle-cache"
     GITHUB_SERVER = 'https://github.sydney.edu.au/api/v3'
     REPO_SLUG     = 'SOFT2412-COMP9412-2025s2/A3-T28-G03'
-    RELEASE_TEST_MODE = 'true'
+    RELEASE_TEST_MODE = 'true' // test mode: allow real release on non-main
   }
 
   stages {
@@ -114,7 +114,7 @@ pipeline {
       when {
         anyOf {
           branch 'main'
-          expression { return env.RELEASE_TEST_MODE == 'true' }
+          expression { return env.RELEASE_TEST_MODE == 'true' } // test mode 打真 release
         }
       }
       steps {
@@ -129,27 +129,29 @@ pipeline {
             git fetch --tags --prune
             [ -e .git/shallow ] && git fetch --unshallow || true
 
+            # set committer identity for annotated tags
+            git config user.name  "xfan0282"
+            git config user.email "xfan0282@uni.sydney.edu.au"
+
             if [ ! -f VERSION_MAJOR ]; then echo "1" > VERSION_MAJOR; fi
             MAJOR=$(tr -d "\\n\\r" < VERSION_MAJOR)
             case "$MAJOR" in ''|*[!0-9]*) echo "Invalid VERSION_MAJOR: $MAJOR" >&2; exit 2 ;; esac
 
             LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
             if [ -z "$LAST_TAG" ]; then
-              MINOR=0; PATCH=0; TAG_PREFIX="v"
-              RANGE_OPT=""
+              MINOR=0; PATCH=0; TAG_PREFIX="v"; RANGE_OPT=""
             else
               VT=$(printf "%s" "$LAST_TAG" | sed -E 's/^[^0-9]*([0-9].*)/\\1/')
               LT_MAJOR=$(printf "%s" "$VT" | cut -d. -f1)
               LT_MINOR=$(printf "%s" "$VT" | cut -d. -f2)
               LT_PATCH=$(printf "%s" "$VT" | cut -d. -f3)
-              [ "$LT_MAJOR" != "$MAJOR" ] && { MINOR=0; PATCH=0; } || { MINOR=$LT_MINOR; PATCH=$LT_PATCH; }
+              if [ "$LT_MAJOR" != "$MAJOR" ]; then MINOR=0; PATCH=0; else MINOR=$LT_MINOR; PATCH=$LT_PATCH; fi
               echo "$LAST_TAG" | grep -q '^[V]' && TAG_PREFIX="V" || TAG_PREFIX="v"
               RANGE_OPT="$LAST_TAG..HEAD"
             fi
 
             HEAD_SHA=$(git rev-parse HEAD)
             SRC_BRANCH=""
-
             for DELAY in 1 2 4; do
               RESP=$(curl -sS -H "Authorization: token $GITHUB_PAT" -H "Accept: application/vnd.github+json" \
                 "$GITHUB_SERVER/repos/$REPO_SLUG/commits/$HEAD_SHA/pulls" || true)
@@ -157,7 +159,6 @@ pipeline {
               [ -n "$SRC_BRANCH" ] && break
               sleep "$DELAY"
             done
-
             if [ -z "$SRC_BRANCH" ]; then
               MERGE_SUBJ=$(git log -1 --pretty=%s || true)
               if printf "%s" "$MERGE_SUBJ" | grep -Eiq '^Merge pull request #[0-9]+'; then
