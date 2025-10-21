@@ -109,6 +109,80 @@ pipeline {
         sh 'echo "Deploy step placeholder. Add real deployment here if needed."'
       }
     }
+
+    stage('Calculate Next Version (dry-run)') {
+      when { not { branch 'main' } }
+      environment {
+        GITHUB_SERVER = 'https://github.sydney.edu.au/api/v3'
+        REPO_SLUG     = 'SOFT2412-COMP9412-2025s2/A3-T28-G03'
+      }
+      steps {
+        withCredentials([string(credentialsId: 'ghe_pat_secret', variable: 'GITHUB_PAT')]) {
+          sh '''
+            set -euo pipefail
+
+            git fetch --tags --prune
+            [ -e .git/shallow ] && git fetch --unshallow || true
+
+            if [ ! -f VERSION_MAJOR ]; then echo "1" > VERSION_MAJOR; fi
+            MAJOR=$(tr -d "\\n\\r" < VERSION_MAJOR)
+            case "$MAJOR" in ''|*[!0-9]*) echo "Invalid VERSION_MAJOR: $MAJOR" >&2; exit 2 ;; esac
+
+            LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
+            if [ -z "$LAST_TAG" ]; then
+              MINOR=0; PATCH=0
+            else
+              VT=${LAST_TAG#v}
+              LT_MAJOR=$(echo "$VT" | cut -d. -f1)
+              LT_MINOR=$(echo "$VT" | cut -d. -f2)
+              LT_PATCH=$(echo "$VT" | cut -d. -f3)
+              if [ "$LT_MAJOR" != "$MAJOR" ]; then
+                MINOR=0; PATCH=0
+              else
+                MINOR=$LT_MINOR; PATCH=$LT_PATCH
+              fi
+            fi
+
+            HEAD_SHA=$(git rev-parse HEAD)
+            SRC_BRANCH=""
+
+            for i in 1 2 3; do
+              RESP=$(curl -sS -H "Authorization: token $GITHUB_PAT" -H "Accept: application/vnd.github+json" \
+                "$GITHUB_SERVER/repos/$REPO_SLUG/commits/$HEAD_SHA/pulls" || true)
+              SRC_BRANCH=$(printf '%s' "$RESP" | sed -n 's/.*"head":{[^}]*"ref":"\\([^"]*\\)".*/\\1/p' | head -n1)
+              [ -n "$SRC_BRANCH" ] && break
+              sleep $((2**i))
+            done
+
+            if [ -z "$SRC_BRANCH" ]; then
+              MERGE_SUBJ=$(git log -1 --pretty=%s || true)
+              if echo "$MERGE_SUBJ" | grep -Eiq '^Merge pull request #[0-9]+'; then
+                SRC_BRANCH=$(echo "$MERGE_SUBJ" | sed -n 's#.* from [^/]*/\\([^ )]*\\).*#\\1#p')
+              fi
+            fi
+
+            if [ -z "$SRC_BRANCH" ]; then
+              echo "WARN: cannot determine PR source branch; default to patch bump"
+              IS_FEAT=0
+            else
+              echo "Detected source branch: $SRC_BRANCH"
+              echo "$SRC_BRANCH" | grep -Eiq '^(feat|feature)/' && IS_FEAT=1 || IS_FEAT=0
+            fi
+
+            if [ "$IS_FEAT" = 1 ]; then
+              MINOR=$((MINOR+1)); PATCH=0
+            else
+              PATCH=$((PATCH+1))
+            fi
+
+            NEXT_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+            echo "$NEXT_VERSION" | tee next-version.txt
+          '''
+          archiveArtifacts artifacts: 'next-version.txt', fingerprint: true, allowEmptyArchive: false
+          echo 'Dry-run only: calculated next version (see next-version.txt)'
+        }
+      }
+    }
   }
 
   post {
