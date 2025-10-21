@@ -8,6 +8,8 @@ pipeline {
 
   environment {
     GRADLE_USER_HOME = "${WORKSPACE}/.gradle-cache"
+    GITHUB_SERVER = 'https://github.sydney.edu.au/api/v3'
+    REPO_SLUG     = 'SOFT2412-COMP9412-2025s2/A3-T28-G03'
   }
 
   stages {
@@ -110,12 +112,9 @@ pipeline {
       }
     }
 
+    // --- Dry-run for non-main branches (kept from Commit 2) ---
     stage('Calculate Next Version (dry-run)') {
       when { not { branch 'main' } }
-      environment {
-        GITHUB_SERVER = 'https://github.sydney.edu.au/api/v3'
-        REPO_SLUG     = 'SOFT2412-COMP9412-2025s2/A3-T28-G03'
-      }
       steps {
         withCredentials([
           usernamePassword(credentialsId: 'ghe_https_pat', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN'),
@@ -124,36 +123,29 @@ pipeline {
           sh '''
             set -euo pipefail
 
-            # ensure authenticated remote for tag operations
             git remote set-url origin "https://$GIT_USER:$GIT_TOKEN@github.sydney.edu.au/$REPO_SLUG.git"
             git fetch --tags --prune
             [ -e .git/shallow ] && git fetch --unshallow || true
 
-            # read major from file (developer-controlled)
             if [ ! -f VERSION_MAJOR ]; then echo "1" > VERSION_MAJOR; fi
             MAJOR=$(tr -d "\\n\\r" < VERSION_MAJOR)
             case "$MAJOR" in ''|*[!0-9]*) echo "Invalid VERSION_MAJOR: $MAJOR" >&2; exit 2 ;; esac
 
-            # normalize last tag: strip leading v/V and any non-digit prefix
             LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
             if [ -z "$LAST_TAG" ]; then
-              MINOR=0; PATCH=0
+              MINOR=0; PATCH=0; TAG_PREFIX="v"
             else
               VT=$(printf "%s" "$LAST_TAG" | sed -E 's/^[^0-9]*([0-9].*)/\\1/')
               LT_MAJOR=$(printf "%s" "$VT" | cut -d. -f1)
               LT_MINOR=$(printf "%s" "$VT" | cut -d. -f2)
               LT_PATCH=$(printf "%s" "$VT" | cut -d. -f3)
-              if [ "$LT_MAJOR" != "$MAJOR" ]; then
-                MINOR=0; PATCH=0
-              else
-                MINOR=$LT_MINOR; PATCH=$LT_PATCH
-              fi
+              [ "$LT_MAJOR" != "$MAJOR" ] && { MINOR=0; PATCH=0; } || { MINOR=$LT_MINOR; PATCH=$LT_PATCH; }
+              echo "$LAST_TAG" | grep -q '^[V]' && TAG_PREFIX="V" || TAG_PREFIX="v"
             fi
 
             HEAD_SHA=$(git rev-parse HEAD)
             SRC_BRANCH=""
 
-            # API-first (POSIX-safe retry: 1,2,4 seconds)
             for DELAY in 1 2 4; do
               RESP=$(curl -sS -H "Authorization: token $GITHUB_PAT" -H "Accept: application/vnd.github+json" \
                 "$GITHUB_SERVER/repos/$REPO_SLUG/commits/$HEAD_SHA/pulls" || true)
@@ -162,7 +154,6 @@ pipeline {
               sleep "$DELAY"
             done
 
-            # title fallback for merge commits
             if [ -z "$SRC_BRANCH" ]; then
               MERGE_SUBJ=$(git log -1 --pretty=%s || true)
               if printf "%s" "$MERGE_SUBJ" | grep -Eiq '^Merge pull request #[0-9]+'; then
@@ -184,17 +175,118 @@ pipeline {
               PATCH=$((PATCH+1))
             fi
 
-            # keep same tag style as repository (detected from LAST_TAG)
-            if printf "%s" "$LAST_TAG" | grep -q '^[V]'; then
-              NEXT_VERSION="V${MAJOR}.${MINOR}.${PATCH}"
-            else
-              NEXT_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
-            fi
-
+            NEXT_VERSION="${TAG_PREFIX}${MAJOR}.${MINOR}.${PATCH}"
             echo "$NEXT_VERSION" | tee next-version.txt
           '''
           archiveArtifacts artifacts: 'next-version.txt', fingerprint: true, allowEmptyArchive: false
           echo 'Dry-run only: calculated next version (see next-version.txt)'
+        }
+      }
+    }
+
+    // --- Real tag & GitHub release for main ---
+    stage('Release (tag + GitHub release)') {
+      when { branch 'main' }
+      steps {
+        withCredentials([
+          usernamePassword(credentialsId: 'ghe_https_pat', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN'),
+          string(credentialsId: 'ghe_pat_secret', variable: 'GITHUB_PAT')
+        ]) {
+          sh '''
+            set -euo pipefail
+
+            git remote set-url origin "https://$GIT_USER:$GIT_TOKEN@github.sydney.edu.au/$REPO_SLUG.git"
+            git fetch --tags --prune
+            [ -e .git/shallow ] && git fetch --unshallow || true
+
+            if [ ! -f VERSION_MAJOR ]; then echo "1" > VERSION_MAJOR; fi
+            MAJOR=$(tr -d "\\n\\r" < VERSION_MAJOR)
+            case "$MAJOR" in ''|*[!0-9]*) echo "Invalid VERSION_MAJOR: $MAJOR" >&2; exit 2 ;; esac
+
+            LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
+            if [ -z "$LAST_TAG" ]; then
+              MINOR=0; PATCH=0; TAG_PREFIX="v"
+              RANGE_OPT=""
+            else
+              VT=$(printf "%s" "$LAST_TAG" | sed -E 's/^[^0-9]*([0-9].*)/\\1/')
+              LT_MAJOR=$(printf "%s" "$VT" | cut -d. -f1)
+              LT_MINOR=$(printf "%s" "$VT" | cut -d. -f2)
+              LT_PATCH=$(printf "%s" "$VT" | cut -d. -f3)
+              [ "$LT_MAJOR" != "$MAJOR" ] && { MINOR=0; PATCH=0; } || { MINOR=$LT_MINOR; PATCH=$LT_PATCH; }
+              echo "$LAST_TAG" | grep -q '^[V]' && TAG_PREFIX="V" || TAG_PREFIX="v"
+              RANGE_OPT="$LAST_TAG..HEAD"
+            fi
+
+            HEAD_SHA=$(git rev-parse HEAD)
+            SRC_BRANCH=""
+
+            for DELAY in 1 2 4; do
+              RESP=$(curl -sS -H "Authorization: token $GITHUB_PAT" -H "Accept: application/vnd.github+json" \
+                "$GITHUB_SERVER/repos/$REPO_SLUG/commits/$HEAD_SHA/pulls" || true)
+              SRC_BRANCH=$(printf "%s" "$RESP" | sed -n 's/.*"head":{[^}]*"ref":"\\([^"]*\\)".*/\\1/p' | head -n1)
+              [ -n "$SRC_BRANCH" ] && break
+              sleep "$DELAY"
+            done
+
+            if [ -z "$SRC_BRANCH" ]; then
+              MERGE_SUBJ=$(git log -1 --pretty=%s || true)
+              if printf "%s" "$MERGE_SUBJ" | grep -Eiq '^Merge pull request #[0-9]+'; then
+                SRC_BRANCH=$(printf "%s" "$MERGE_SUBJ" | sed -n 's#.* from [^/]*/\\([^ )]*\\).*#\\1#p')
+              fi
+            fi
+
+            if [ -z "$SRC_BRANCH" ]; then
+              echo "WARN: cannot determine PR source branch; default to patch bump"
+              IS_FEAT=0
+            else
+              echo "Detected source branch: $SRC_BRANCH"
+              echo "$SRC_BRANCH" | grep -Eiq '^(feat|feature)/' && IS_FEAT=1 || IS_FEAT=0
+            fi
+
+            if [ "$IS_FEAT" = 1 ]; then
+              MINOR=$((MINOR+1)); PATCH=0
+            else
+              PATCH=$((PATCH+1))
+            fi
+
+            NEXT_VERSION="${TAG_PREFIX}${MAJOR}.${MINOR}.${PATCH}"
+            echo "$NEXT_VERSION" | tee next-version.txt
+
+            if git rev-parse -q --verify "refs/tags/$NEXT_VERSION" >/dev/null; then
+              echo "Tag $NEXT_VERSION already exists, skip tagging/release."
+              exit 0
+            fi
+
+            git tag -a "$NEXT_VERSION" -m "Release $NEXT_VERSION (automated by Jenkins)"
+            git push origin "$NEXT_VERSION"
+
+            if [ -n "$RANGE_OPT" ]; then
+              CHANGELOG=$(git log --no-merges --pretty="* %h %s (%an)" $RANGE_OPT | sed 's/"/\\"/g')
+            else
+              CHANGELOG=$(git log -1 --pretty="* %h %s (%an)" | sed 's/"/\\"/g')
+            fi
+
+            PAYLOAD=$(cat <<JSON
+            {
+              "tag_name": "$NEXT_VERSION",
+              "target_commitish": "$HEAD_SHA",
+              "name": "$NEXT_VERSION",
+              "body": "Changes since last release:\\n\\n$CHANGELOG",
+              "draft": false,
+              "prerelease": false
+            }
+JSON
+)
+            curl -sS -X POST \
+              -H "Authorization: token $GITHUB_PAT" \
+              -H "Accept: application/vnd.github+json" \
+              -H "Content-Type: application/json" \
+              -d "$PAYLOAD" \
+              "$GITHUB_SERVER/repos/$REPO_SLUG/releases" >/dev/null
+
+            echo "Release $NEXT_VERSION created."
+          '''
+          archiveArtifacts artifacts: 'next-version.txt', fingerprint: true, allowEmptyArchive: false
         }
       }
     }
