@@ -2,7 +2,6 @@ package org.soft2412.vsas.cli;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -55,7 +54,13 @@ public class PreviewCommandTest {
   }
 
   private static void writeScrollRow(
-      Path tsv, String id, String name, String uploader, String uploadDate, String filePath, long dl)
+      Path tsv,
+      String id,
+      String name,
+      String uploader,
+      String uploadDate,
+      String filePath,
+      long dl)
       throws Exception {
     String line =
         String.join(
@@ -67,7 +72,12 @@ public class PreviewCommandTest {
                 filePath == null ? "" : filePath,
                 Long.toString(dl))
             + System.lineSeparator();
-    Files.writeString(tsv, line, StandardCharsets.UTF_8, java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
+    Files.writeString(
+        tsv,
+        line,
+        StandardCharsets.UTF_8,
+        java.nio.file.StandardOpenOption.CREATE,
+        java.nio.file.StandardOpenOption.APPEND);
   }
 
   @Test
@@ -75,7 +85,8 @@ public class PreviewCommandTest {
     // Prepare data file and content
     String id = "s1";
     Path f = filesDir.resolve(id + ".bin");
-    byte[] content = new byte[] {0x48, 0x65, 0x6c, 0x6c, 0x6f, '\n', 0x57, 0x6f, 0x72, 0x6c, 0x64, 0x00};
+    byte[] content =
+        new byte[] {0x48, 0x65, 0x6c, 0x6c, 0x6f, '\n', 0x57, 0x6f, 0x72, 0x6c, 0x64, 0x00};
     Files.write(f, content);
     writeScrollRow(
         scrollsTsv,
@@ -117,13 +128,7 @@ public class PreviewCommandTest {
   void preview_unknownId_printsError_exit1() throws Exception {
     // write a different id
     writeScrollRow(
-        scrollsTsv,
-        "other",
-        "X",
-        "U-9",
-        Instant.parse("2025-01-01T00:00:00Z").toString(),
-        "",
-        0L);
+        scrollsTsv, "other", "X", "U-9", Instant.parse("2025-01-01T00:00:00Z").toString(), "", 0L);
 
     PrintStream oldOut = System.out;
     PrintStream oldErr = System.err;
@@ -221,7 +226,8 @@ public class PreviewCommandTest {
       outBuf.reset();
       int c3 = new PreviewCommand().run(new String[] {"extra"});
       assertEquals(2, c3);
-      assertTrue(errBuf.toString(StandardCharsets.UTF_8).toLowerCase().contains("unexpected argument"));
+      assertTrue(
+          errBuf.toString(StandardCharsets.UTF_8).toLowerCase().contains("unexpected argument"));
     } finally {
       System.setOut(oldOut);
       System.setErr(oldErr);
