@@ -27,7 +27,7 @@ public class FileScrollRepositoryTest {
 
   @Test
   public void saveAndFindWorks() {
-    Scroll s = new Scroll("idx", "T", "u-1", "2024-01-01T00:00:00Z", "data/files/idx.bin", 0L);
+    Scroll s = new Scroll("idx", "T", "u-1", "2024-01-01T00:00:00Z", "data/files/idx.bin", 1L, 0L);
     ScrollRepository repo = new FileScrollRepository();
     assertTrue(repo.save(s));
     assertTrue(repo.existsId("idx"));

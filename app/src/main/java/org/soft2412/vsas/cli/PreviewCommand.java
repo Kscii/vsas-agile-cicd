@@ -156,7 +156,7 @@ public final class PreviewCommand implements Command {
     int avail = len - start;
     int need = utf8CharLen(bytes[start] & 0xFF);
     if (need == 0) {
-      // Invalid leading byte; do not attempt to trim — let decoder decide
+      // Invalid leading byte; do not attempt to trim �?let decoder decide
       return len;
     }
     if (need > 1 && avail < need) {

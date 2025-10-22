@@ -86,6 +86,7 @@ class DownloadCommandTest {
             "ID-1",
             Instant.parse("2025-01-01T00:00:00Z").toString(),
             src.toString(),
+            0L,
             0L);
     ScrollRepository repo = new FileScrollRepository();
     assertTrue(repo.save(sc));
@@ -98,7 +99,6 @@ class DownloadCommandTest {
     assertEquals(0, code);
     String out = outBuf.toString(StandardCharsets.UTF_8).trim();
     Path expected = outDir.resolve("s1.bin").toAbsolutePath().normalize();
-    // Avoid strict equality due to console encoding on non-ASCII user dirs
     assertTrue(out.endsWith("s1.bin"), "stdout should end with file name");
     assertTrue(Files.exists(expected));
     assertEquals("payload-123", Files.readString(expected, StandardCharsets.UTF_8));
@@ -121,6 +121,7 @@ class DownloadCommandTest {
             "ID-2",
             Instant.parse("2025-01-02T00:00:00Z").toString(),
             src.toString(),
+            0L,
             0L);
     assertTrue(new FileScrollRepository().save(sc));
 
@@ -151,16 +152,15 @@ class DownloadCommandTest {
             "ID-3",
             Instant.parse("2025-01-03T00:00:00Z").toString(),
             src.toString(),
+            0L,
             0L);
     assertTrue(new FileScrollRepository().save(sc));
 
-    // Accept prompt; current working dir for tests is the module dir ("app")
     System.setIn(new ByteArrayInputStream("y\n".getBytes(StandardCharsets.UTF_8)));
     DownloadCommand cmd = new DownloadCommand();
     int code = cmd.run(new String[] {"--id", "s3"});
 
     assertEquals(0, code);
-    // stdout content may include prompt and vary by console encoding; skip strict assertion here
     Path expected = Path.of(".").toAbsolutePath().normalize().resolve("s3.bin");
     assertTrue(Files.exists(expected));
     assertEquals("X", Files.readString(expected, StandardCharsets.UTF_8));
@@ -184,6 +184,7 @@ class DownloadCommandTest {
             "ID-4",
             Instant.parse("2025-01-04T00:00:00Z").toString(),
             src.toString(),
+            0L,
             0L);
     assertTrue(new FileScrollRepository().save(sc));
 
@@ -216,6 +217,7 @@ class DownloadCommandTest {
             "ID-5",
             Instant.parse("2025-01-05T00:00:00Z").toString(),
             src.toString(),
+            0L,
             0L);
     assertTrue(new FileScrollRepository().save(sc));
 
@@ -260,6 +262,7 @@ class DownloadCommandTest {
             "ID-10",
             Instant.parse("2025-01-10T00:00:00Z").toString(),
             Path.of("/nonexistent/path/to/file.bin").toString(),
+            0L,
             0L);
     assertTrue(new FileScrollRepository().save(sc));
 
