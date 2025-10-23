@@ -116,4 +116,46 @@ public final class FileScrollRepository implements ScrollRepository {
   private String nullToEmpty(String s) {
     return s == null ? "" : s;
   }
+
+  @Override
+public boolean deleteById(String id) {
+  java.util.List<Scroll> all = findAll();
+  boolean hit = false;
+  java.util.List<String> lines = new java.util.ArrayList<>();
+  String payloadPathToDelete = null;
+
+  for (Scroll s : all) {
+    if (s.id().equals(id)) {
+      hit = true;
+      // 记住二进制文件路径，稍后删除
+      payloadPathToDelete = s.filePath(); // 你们 Scroll 的字段名若不同请替换
+      continue; // 不写回，等于从 TSV 移除
+    }
+    lines.add(toTsv(s));
+  }
+  if (!hit) return false;
+
+  try {
+    java.nio.file.Path dir = dataFile.getParent();
+    if (dir != null) java.nio.file.Files.createDirectories(dir);
+    java.nio.file.Path tmp =
+        dataFile.resolveSibling(dataFile.getFileName().toString() + ".tmp");
+    java.nio.file.Files.write(tmp, lines, java.nio.charset.StandardCharsets.UTF_8,
+        java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.TRUNCATE_EXISTING);
+    java.nio.file.Files.move(tmp, dataFile,
+        java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+        java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+  } catch (java.io.IOException e) {
+    return false;
+  }
+
+  // 删除二进制文件（静默失败不影响主流程）
+  if (payloadPathToDelete != null && !payloadPathToDelete.isBlank()) {
+    try {
+      java.nio.file.Files.deleteIfExists(java.nio.file.Path.of(payloadPathToDelete));
+    } catch (Exception ignore) {}
+  }
+  return true;
+}
+
 }

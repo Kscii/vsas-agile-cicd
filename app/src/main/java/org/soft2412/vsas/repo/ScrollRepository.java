@@ -12,4 +12,6 @@ public interface ScrollRepository {
   boolean existsId(String id);
 
   boolean save(Scroll scroll);
+
+  boolean deleteById(String id);
 }
