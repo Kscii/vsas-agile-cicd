@@ -27,6 +27,8 @@ public final class CommandDispatcher {
         return new UploadCommand().run(opts);
       case "download":
         return new DownloadCommand().run(opts);
+      case "scroll":
+        return new ScrollCommand().run(opts);
       default:
         System.err.println("Unknown command: " + cmd);
         return 2;
