@@ -1,15 +1,18 @@
 package org.soft2412.vsas.repo;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Pattern;
 import org.soft2412.vsas.model.User;
+import org.soft2412.vsas.security.PasswordHasher;
 
 /**
  * TSV-backed user repository.
@@ -106,6 +109,93 @@ public final class FileUserRepository implements UserRepository {
           usersPath, row, StandardCharsets.UTF_8, java.nio.file.StandardOpenOption.APPEND);
       return true;
     } catch (IOException e) {
+      return false;
+    }
+  }
+
+  @Override
+  public boolean updateProfile(
+      String username, String newEmail, String newPhone, char[] newPassword) {
+    if (isBlank(username)) return false;
+    Path temp = null;
+    boolean updated = false;
+    PasswordHasher hasher = newPassword != null ? new PasswordHasher() : null;
+    try {
+      if (!Files.exists(usersPath)) {
+        return false;
+      }
+      try (BufferedReader br = Files.newBufferedReader(usersPath, StandardCharsets.UTF_8)) {
+        String header = br.readLine();
+        if (header == null) {
+          return false;
+        }
+        String[] cols = header.split("\t", -1);
+        int iUser = indexOfCol(cols, "username");
+        int iEmail = indexOfCol(cols, "email");
+        int iPhone = indexOfCol(cols, "phone");
+        int iHash = indexOfCol(cols, "passwordHash");
+        int iSalt = indexOfCol(cols, "salt");
+        if (iUser < 0 || iEmail < 0 || iPhone < 0 || iHash < 0 || iSalt < 0) {
+          return false;
+        }
+
+        Path parent = usersPath.getParent();
+        temp = Files.createTempFile(parent == null ? Path.of(".") : parent, "users-", ".tmp");
+        try (BufferedWriter bw = Files.newBufferedWriter(temp, StandardCharsets.UTF_8)) {
+          bw.write(header);
+          bw.write("\n");
+
+          String line;
+          while ((line = br.readLine()) != null) {
+            String[] parts = line.split("\t", -1);
+            if (parts.length < cols.length) {
+              bw.write(line);
+              bw.write("\n");
+              continue;
+            }
+            if (username.equals(parts[iUser])) {
+              if (newEmail != null) {
+                parts[iEmail] = sanitize(newEmail);
+              }
+              if (newPhone != null) {
+                parts[iPhone] = sanitize(newPhone);
+              }
+              if (newPassword != null) {
+                byte[] salt = hasher.generateSalt(16);
+                String hashHex = hasher.hashToHex(newPassword, salt);
+                parts[iHash] = hashHex;
+                parts[iSalt] = PasswordHasher.bytesToHex(salt);
+              }
+              updated = true;
+              StringBuilder sb = new StringBuilder();
+              for (int i = 0; i < cols.length; i++) {
+                if (i > 0) sb.append('\t');
+                sb.append(i < parts.length ? parts[i] : "");
+              }
+              line = sb.toString();
+            }
+            bw.write(line);
+            bw.write("\n");
+          }
+        }
+      }
+
+      if (!updated) {
+        if (temp != null) {
+          Files.deleteIfExists(temp);
+        }
+        return false;
+      }
+
+      Files.move(temp, usersPath, StandardCopyOption.REPLACE_EXISTING);
+      return true;
+    } catch (IOException e) {
+      if (temp != null) {
+        try {
+          Files.deleteIfExists(temp);
+        } catch (IOException ignored) {
+        }
+      }
       return false;
     }
   }
