@@ -15,8 +15,17 @@ import org.soft2412.vsas.repo.ScrollRepository;
 public final class ListCommand implements Command {
   private final ScrollRepository scrolls = new FileScrollRepository();
 
-  // Accept yyyy-MM-dd only for --from/--to
   private static final DateTimeFormatter FROM_TO_FMT = DateTimeFormatter.ISO_LOCAL_DATE;
+
+  // Fixed column widths for stable output
+  private static final int W_ID = 12;
+  private static final int W_NAME = 30;
+  private static final int W_UPLOADER = 14;
+  private static final int W_DATE = 20;
+
+  private static final String FIXED_HEADER_FMT =
+      "%-" + W_ID + "s  %-" + W_NAME + "s  %-" + W_UPLOADER + "s  %-" + W_DATE + "s";
+  private static final String FIXED_ROW_FMT = FIXED_HEADER_FMT;
 
   @Override
   public int run(String[] args) {
@@ -71,8 +80,6 @@ public final class ListCommand implements Command {
     // ---- Load all ----
     List<Scroll> all = scrolls.findAll();
     if (all.isEmpty()) {
-      // Keep legacy output for repository-empty case to stay compatible with existing
-      // tests
       System.out.println("no scrolls");
       return 0;
     }
@@ -99,7 +106,7 @@ public final class ListCommand implements Command {
                 s -> {
                   if (fromDateF == null && toDateF == null) return true;
                   LocalDate d = parseUploadDateToLocalDate(s.uploadDate());
-                  if (d == null) return false; // if cannot parse, treat as non-match
+                  if (d == null) return false;
                   if (fromDateF != null && d.isBefore(fromDateF)) return false;
                   if (toDateF != null && d.isAfter(toDateF)) return false;
                   return true;
@@ -107,19 +114,39 @@ public final class ListCommand implements Command {
             .collect(Collectors.toList());
 
     if (filtered.isEmpty()) {
-      // Filters applied but nothing matched
       System.out.println("No scrolls.");
       return 0;
     }
 
-    // ---- Print header and rows (fixed-width formatting will be in next commit)
-    // ----
+    // ---- Output: keep legacy header for compatibility, then print fixed-width
+    // table ----
     System.out.println("id | name | uploader | uploadDate");
+
+    System.out.println(formatFixedHeader());
     for (Scroll s : filtered) {
-      System.out.println(
-          s.id() + " | " + s.name() + " | " + s.uploaderIdKey() + " | " + s.uploadDate());
+      System.out.println(formatFixedRow(s));
     }
     return 0;
+  }
+
+  private static String formatFixedHeader() {
+    return String.format(FIXED_HEADER_FMT, "id", "name", "uploader", "uploadDate");
+  }
+
+  private static String formatFixedRow(Scroll s) {
+    return String.format(
+        FIXED_ROW_FMT,
+        cut(s.id(), W_ID),
+        cut(s.name(), W_NAME),
+        cut(s.uploaderIdKey(), W_UPLOADER),
+        cut(s.uploadDate(), W_DATE));
+  }
+
+  private static String cut(String v, int width) {
+    String x = v == null ? "" : v;
+    if (x.length() <= width) return x;
+    // hard-cut to keep column widths strictly stable
+    return x.substring(0, width);
   }
 
   private static LocalDate parseUploadDateToLocalDate(String uploadDate) {
@@ -128,7 +155,6 @@ public final class ListCommand implements Command {
       Instant ins = Instant.parse(uploadDate);
       return ins.atOffset(ZoneOffset.UTC).toLocalDate();
     } catch (Exception ignore) {
-      // not ISO_INSTANT, cannot parse; treat as non-match
       return null;
     }
   }
