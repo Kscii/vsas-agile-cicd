@@ -11,4 +11,15 @@ public interface UserRepository {
   boolean existsIdKey(String idKey);
 
   boolean save(User user);
+
+  /**
+   * Update the persisted profile for the given username.
+   *
+   * @param username the user to update (required)
+   * @param newEmail optional new email (null to keep current)
+   * @param newPhone optional new phone (null to keep current)
+   * @param newPassword optional new password (null to keep current); if provided it will be hashed
+   * @return {@code true} if the row was updated, {@code false} otherwise
+   */
+  boolean updateProfile(String username, String newEmail, String newPhone, char[] newPassword);
 }
