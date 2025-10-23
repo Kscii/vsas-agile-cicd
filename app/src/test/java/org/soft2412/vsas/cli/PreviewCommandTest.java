@@ -81,12 +81,11 @@ public class PreviewCommandTest {
   }
 
   @Test
-  void preview_knownId_printsMetadataAndSnippet_exit0() throws Exception {
+  void preview_textUtf8_showsTextOnly_exit0() throws Exception {
     // Prepare data file and content
     String id = "s1";
     Path f = filesDir.resolve(id + ".bin");
-    byte[] content =
-        new byte[] {0x48, 0x65, 0x6c, 0x6c, 0x6f, '\n', 0x57, 0x6f, 0x72, 0x6c, 0x64, 0x00};
+    byte[] content = "Hello\nWorld".getBytes(StandardCharsets.UTF_8);
     Files.write(f, content);
     writeScrollRow(
         scrollsTsv,
@@ -113,10 +112,49 @@ public class PreviewCommandTest {
       assertTrue(out.contains("name: Greeting"));
       assertTrue(out.contains("uploader: U-1"));
       assertTrue(out.toLowerCase().contains("size: "));
-      assertTrue(out.contains("text: "));
+      assertTrue(out.contains("text: Hello World"));
+      assertFalse(out.contains("hex:"));
+      assertEquals("", errBuf.toString(StandardCharsets.UTF_8));
+    } finally {
+      System.setOut(oldOut);
+      System.setErr(oldErr);
+    }
+  }
+
+  @Test
+  void preview_binaryData_showsHexOnly_exit0() throws Exception {
+    String id = "sbin";
+    Path f = filesDir.resolve(id + ".bin");
+    // Invalid UTF-8 sequence: 0xC3 0x28 plus some bytes
+    byte[] content = new byte[] {(byte) 0xC3, 0x28, (byte) 0xFF, (byte) 0xFE, 0x00, 0x01};
+    Files.write(f, content);
+    writeScrollRow(
+        scrollsTsv,
+        id,
+        "Binary",
+        "U-9",
+        Instant.parse("2025-01-01T00:00:00Z").toString(),
+        f.toString(),
+        0L);
+
+    PrintStream oldOut = System.out;
+    PrintStream oldErr = System.err;
+    try {
+      ByteArrayOutputStream outBuf = new ByteArrayOutputStream();
+      ByteArrayOutputStream errBuf = new ByteArrayOutputStream();
+      System.setOut(new PrintStream(outBuf, true, StandardCharsets.UTF_8));
+      System.setErr(new PrintStream(errBuf, true, StandardCharsets.UTF_8));
+
+      int code = new PreviewCommand().run(new String[] {"--id", id});
+
+      assertEquals(0, code);
+      String out = outBuf.toString(StandardCharsets.UTF_8);
+      assertTrue(out.contains("id: " + id));
+      assertTrue(out.contains("name: Binary"));
+      assertTrue(out.contains("uploader: U-9"));
+      assertTrue(out.toLowerCase().contains("size: "));
       assertTrue(out.contains("hex:  "));
-      // Verify a couple of expected hex bytes
-      assertTrue(out.contains("48") || out.contains("48 65"));
+      assertFalse(out.contains("text:"));
       assertEquals("", errBuf.toString(StandardCharsets.UTF_8));
     } finally {
       System.setOut(oldOut);
@@ -191,6 +229,40 @@ public class PreviewCommandTest {
       System.setErr(new PrintStream(errBuf, true, StandardCharsets.UTF_8));
 
       int code = new PreviewCommand().run(new String[] {"--id", "s2"});
+
+      assertEquals(0, code);
+      String out = outBuf.toString(StandardCharsets.UTF_8);
+      assertTrue(out.contains("no preview available"));
+      assertEquals("", errBuf.toString(StandardCharsets.UTF_8));
+    } finally {
+      System.setOut(oldOut);
+      System.setErr(oldErr);
+    }
+  }
+
+  @Test
+  void preview_missingFileOnDisk_printsNoPreviewAvailable_exit0() throws Exception {
+    String id = "s3";
+    // Point to a non-existent file path
+    Path missing = filesDir.resolve("does-not-exist.bin");
+    writeScrollRow(
+        scrollsTsv,
+        id,
+        "Missing",
+        "U-3",
+        Instant.parse("2025-01-03T00:00:00Z").toString(),
+        missing.toString(),
+        0L);
+
+    PrintStream oldOut = System.out;
+    PrintStream oldErr = System.err;
+    try {
+      ByteArrayOutputStream outBuf = new ByteArrayOutputStream();
+      ByteArrayOutputStream errBuf = new ByteArrayOutputStream();
+      System.setOut(new PrintStream(outBuf, true, StandardCharsets.UTF_8));
+      System.setErr(new PrintStream(errBuf, true, StandardCharsets.UTF_8));
+
+      int code = new PreviewCommand().run(new String[] {"--id", id});
 
       assertEquals(0, code);
       String out = outBuf.toString(StandardCharsets.UTF_8);
