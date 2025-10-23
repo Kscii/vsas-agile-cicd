@@ -193,7 +193,7 @@ pipeline {
               elif printf %s "${MERGE_SUBJ}" | grep -Eiq '^Merge pull request #[0-9]+' && \
                    printf %s "${MERGE_SUBJ}" | grep -Eiq '(feat|feature)'; then
                 MINOR=$((LT_MINOR + 1)); PATCH=0
-              elif printf %s "${MERGE_SUBJ}" | grep -Eiq "^(feat(\(|:)|feat[/-])"; then
+              elif printf %s "${MERGE_SUBJ}" | grep -Eiq '^feat([(:]|[/-])'; then
                 MINOR=$((LT_MINOR + 1)); PATCH=0
               else
                 MINOR="${LT_MINOR}"; PATCH=$((LT_PATCH + 1))
