@@ -118,6 +118,12 @@ public final class ListCommand implements Command {
       return 0;
     }
 
+    // ---- Fixed-width table for stable scripting-friendly output ----
+    System.out.println(formatFixedHeader());
+    for (Scroll s : filtered) {
+      System.out.println(formatFixedRow(s));
+    }
+
     // ---- Legacy output for backwards-compatibility (tests expect this) ----
     System.out.println("id | name | uploader | uploadDate");
     for (Scroll s : filtered) {
@@ -125,11 +131,6 @@ public final class ListCommand implements Command {
           s.id() + " | " + s.name() + " | " + s.uploaderIdKey() + " | " + s.uploadDate());
     }
 
-    // ---- Fixed-width table for stable scripting-friendly output ----
-    System.out.println(formatFixedHeader());
-    for (Scroll s : filtered) {
-      System.out.println(formatFixedRow(s));
-    }
     return 0;
   }
 
