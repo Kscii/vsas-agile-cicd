@@ -15,6 +15,8 @@ public final class ScrollCommand {
     switch (sub) {
       case "delete":
         return new ScrollDeleteSubcommand().run(rest);
+      case "update":
+        return new ScrollUpdateSubcommand().run(rest);
       default:
         System.err.println("Unknown subcommand: " + sub);
         printUsage();

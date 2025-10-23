@@ -161,4 +161,41 @@ public final class FileScrollRepository implements ScrollRepository {
     }
     return true;
   }
+
+  @Override
+  public boolean update(Scroll updated) {
+    java.util.List<Scroll> all = findAll();
+    boolean hit = false;
+    java.util.List<String> lines = new java.util.ArrayList<>();
+
+    for (Scroll s : all) {
+      if (s.id().equals(updated.id())) {
+        lines.add(toTsv(updated));
+        hit = true;
+      } else {
+        lines.add(toTsv(s));
+      }
+    }
+    if (!hit) return false;
+
+    try {
+      java.nio.file.Path dir = dataFile.getParent();
+      if (dir != null) java.nio.file.Files.createDirectories(dir);
+      java.nio.file.Path tmp = dataFile.resolveSibling(dataFile.getFileName().toString() + ".tmp");
+      java.nio.file.Files.write(
+          tmp,
+          lines,
+          java.nio.charset.StandardCharsets.UTF_8,
+          java.nio.file.StandardOpenOption.CREATE,
+          java.nio.file.StandardOpenOption.TRUNCATE_EXISTING);
+      java.nio.file.Files.move(
+          tmp,
+          dataFile,
+          java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+          java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+      return true;
+    } catch (java.io.IOException e) {
+      return false;
+    }
+  }
 }
