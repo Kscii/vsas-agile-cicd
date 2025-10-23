@@ -84,7 +84,7 @@ public final class ListCommand implements Command {
       return 0;
     }
 
-    // ---- Prepare final copies for lambdas ----
+    // ---- Prepare finals for lambdas ----
     final String uploaderIdF = uploaderId;
     final String scrollIdF = scrollId;
     final String nameNormF = nameKw == null ? null : nameKw.toLowerCase(Locale.ROOT);
@@ -118,10 +118,14 @@ public final class ListCommand implements Command {
       return 0;
     }
 
-    // ---- Output: keep legacy header for compatibility, then print fixed-width
-    // table ----
+    // ---- Legacy output for backwards-compatibility (tests expect this) ----
     System.out.println("id | name | uploader | uploadDate");
+    for (Scroll s : filtered) {
+      System.out.println(
+          s.id() + " | " + s.name() + " | " + s.uploaderIdKey() + " | " + s.uploadDate());
+    }
 
+    // ---- Fixed-width table for stable scripting-friendly output ----
     System.out.println(formatFixedHeader());
     for (Scroll s : filtered) {
       System.out.println(formatFixedRow(s));
@@ -145,7 +149,6 @@ public final class ListCommand implements Command {
   private static String cut(String v, int width) {
     String x = v == null ? "" : v;
     if (x.length() <= width) return x;
-    // hard-cut to keep column widths strictly stable
     return x.substring(0, width);
   }
 
