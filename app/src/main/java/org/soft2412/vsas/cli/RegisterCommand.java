@@ -79,8 +79,19 @@ public final class RegisterCommand implements Command {
           /* ignore unknown for forward-compat */ }
     }
 
-    // If password flag is omitted/blank, read interactively with masked prompt and
-    // confirm
+    if (username == null
+        || username.trim().isEmpty()
+        || email == null
+        || email.trim().isEmpty()
+        || phone == null
+        || phone.trim().isEmpty()
+        || idKey == null
+        || idKey.trim().isEmpty()) {
+      err.println(
+          "Error: missing required flags. Usage: register --username <u> [--password <p>] --email <e> --phone <ph> --id-key <k>");
+      return 2;
+    }
+
     if (password == null || password.trim().isEmpty()) {
       try {
         char[] p1 = org.soft2412.vsas.cli.PasswordPrompt.read(out, "Password: ");
@@ -101,20 +112,6 @@ public final class RegisterCommand implements Command {
         err.println("Error: password prompt failed");
         return 2;
       }
-    }
-
-    // Explicit null/blank checks (password already ensured above)
-    if (username == null
-        || username.trim().isEmpty()
-        || email == null
-        || email.trim().isEmpty()
-        || phone == null
-        || phone.trim().isEmpty()
-        || idKey == null
-        || idKey.trim().isEmpty()) {
-      err.println(
-          "Error: missing required flags. Usage: register --username <u> [--password <p>] --email <e> --phone <ph> --id-key <k>");
-      return 2;
     }
 
     // Sanitize fields for TSV safety
