@@ -137,8 +137,7 @@ class ScrollUpdateSubcommandTest {
             5L);
     assertTrue(repo.save(sc));
 
-    int code =
-        new ScrollUpdateSubcommand().run(new String[] {"--id", "S2", "--name", "NewName"});
+    int code = new ScrollUpdateSubcommand().run(new String[] {"--id", "S2", "--name", "NewName"});
     assertEquals(0, code);
     assertTrue(outBuf.toString(StandardCharsets.UTF_8).contains("Updated"));
 
@@ -172,8 +171,7 @@ class ScrollUpdateSubcommandTest {
 
     System.setIn(new ByteArrayInputStream("n\n".getBytes(StandardCharsets.UTF_8)));
     int code =
-        new ScrollUpdateSubcommand()
-            .run(new String[] {"--id", "S3", "--file", newSrc.toString()});
+        new ScrollUpdateSubcommand().run(new String[] {"--id", "S3", "--file", newSrc.toString()});
     assertEquals(0, code);
     assertTrue(outBuf.toString(StandardCharsets.UTF_8).contains("Aborted"));
 
@@ -203,8 +201,7 @@ class ScrollUpdateSubcommandTest {
 
     System.setIn(new ByteArrayInputStream("y\n".getBytes(StandardCharsets.UTF_8)));
     int code =
-        new ScrollUpdateSubcommand()
-            .run(new String[] {"--id", "S4", "--file", newSrc.toString()});
+        new ScrollUpdateSubcommand().run(new String[] {"--id", "S4", "--file", newSrc.toString()});
     assertEquals(0, code);
     assertTrue(outBuf.toString(StandardCharsets.UTF_8).contains("Updated"));
 
@@ -264,8 +261,7 @@ class ScrollUpdateSubcommandTest {
 
     Path missing = Path.of("/path/not/exist/file.bin");
     int code =
-        new ScrollUpdateSubcommand()
-            .run(new String[] {"--id", "S6", "--file", missing.toString()});
+        new ScrollUpdateSubcommand().run(new String[] {"--id", "S6", "--file", missing.toString()});
     assertEquals(1, code);
     assertTrue(errBuf.toString(StandardCharsets.UTF_8).toLowerCase().contains("file not found"));
     assertEquals("Z", Files.readString(payload, StandardCharsets.UTF_8));

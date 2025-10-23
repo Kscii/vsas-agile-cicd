@@ -181,11 +181,16 @@ public final class FileScrollRepository implements ScrollRepository {
     try {
       java.nio.file.Path dir = dataFile.getParent();
       if (dir != null) java.nio.file.Files.createDirectories(dir);
-      java.nio.file.Path tmp =
-          dataFile.resolveSibling(dataFile.getFileName().toString() + ".tmp");
-      java.nio.file.Files.write(tmp, lines, java.nio.charset.StandardCharsets.UTF_8,
-          java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.TRUNCATE_EXISTING);
-      java.nio.file.Files.move(tmp, dataFile,
+      java.nio.file.Path tmp = dataFile.resolveSibling(dataFile.getFileName().toString() + ".tmp");
+      java.nio.file.Files.write(
+          tmp,
+          lines,
+          java.nio.charset.StandardCharsets.UTF_8,
+          java.nio.file.StandardOpenOption.CREATE,
+          java.nio.file.StandardOpenOption.TRUNCATE_EXISTING);
+      java.nio.file.Files.move(
+          tmp,
+          dataFile,
           java.nio.file.StandardCopyOption.REPLACE_EXISTING,
           java.nio.file.StandardCopyOption.ATOMIC_MOVE);
       return true;
@@ -193,5 +198,4 @@ public final class FileScrollRepository implements ScrollRepository {
       return false;
     }
   }
-
 }

@@ -7,9 +7,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.Optional;
 import org.soft2412.vsas.model.Scroll;
+import org.soft2412.vsas.model.User;
 import org.soft2412.vsas.repo.FileScrollRepository;
 import org.soft2412.vsas.repo.ScrollRepository;
-import org.soft2412.vsas.model.User;
 import org.soft2412.vsas.service.SessionService;
 
 public final class ScrollUpdateSubcommand {
@@ -24,15 +24,24 @@ public final class ScrollUpdateSubcommand {
       String a = args[i];
       switch (a) {
         case "--id":
-          if (i + 1 >= args.length) { System.err.println("Missing value for --id"); return 2; }
+          if (i + 1 >= args.length) {
+            System.err.println("Missing value for --id");
+            return 2;
+          }
           id = args[++i].trim();
           break;
         case "--name":
-          if (i + 1 >= args.length) { System.err.println("Missing value for --name"); return 2; }
+          if (i + 1 >= args.length) {
+            System.err.println("Missing value for --name");
+            return 2;
+          }
           newName = args[++i];
           break;
         case "--file":
-          if (i + 1 >= args.length) { System.err.println("Missing value for --file"); return 2; }
+          if (i + 1 >= args.length) {
+            System.err.println("Missing value for --file");
+            return 2;
+          }
           newFilePath = args[++i];
           break;
         case "--yes":
@@ -45,7 +54,8 @@ public final class ScrollUpdateSubcommand {
     }
 
     if (id == null || id.isEmpty()) {
-      System.err.println("Usage: scroll update --id <sid> [--name \"<n>\"] [--file <path>] [--yes]");
+      System.err.println(
+          "Usage: scroll update --id <sid> [--name \"<n>\"] [--file <path>] [--yes]");
       return 2;
     }
     if ((newName == null || newName.isBlank()) && (newFilePath == null || newFilePath.isBlank())) {
@@ -85,8 +95,11 @@ public final class ScrollUpdateSubcommand {
         BufferedReader br =
             new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
         String line;
-        try { line = br.readLine(); } catch (IOException e) {
-          System.err.println("I/O error: " + e.getMessage()); return 1;
+        try {
+          line = br.readLine();
+        } catch (IOException e) {
+          System.err.println("I/O error: " + e.getMessage());
+          return 1;
         }
         String ans = line == null ? "" : line.trim().toLowerCase();
         if (!(ans.equals("y") || ans.equals("yes"))) {
@@ -102,20 +115,23 @@ public final class ScrollUpdateSubcommand {
         Files.move(tmp, dst, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
       } catch (IOException e) {
         System.err.println("Failed to replace payload: " + e.getMessage());
-        try { Files.deleteIfExists(tmp); } catch (IOException ignore) {}
+        try {
+          Files.deleteIfExists(tmp);
+        } catch (IOException ignore) {
+        }
         return 1;
       }
     }
 
     String name = (newName != null && !newName.isBlank()) ? newName : old.name();
-    Scroll updated = new Scroll(
-        old.id(),
-        name,
-        old.uploaderIdKey(),
-        old.uploadDate(),
-        finalPayloadPath,
-        old.downloadCount()
-    );
+    Scroll updated =
+        new Scroll(
+            old.id(),
+            name,
+            old.uploaderIdKey(),
+            old.uploadDate(),
+            finalPayloadPath,
+            old.downloadCount());
 
     boolean ok = repo.update(updated);
     if (!ok) {
