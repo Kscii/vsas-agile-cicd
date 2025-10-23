@@ -6,16 +6,14 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import org.soft2412.vsas.model.Scroll;
+import org.soft2412.vsas.model.User;
 import org.soft2412.vsas.repo.FileScrollRepository;
 import org.soft2412.vsas.repo.ScrollRepository;
-import org.soft2412.vsas.model.User;
 import org.soft2412.vsas.service.SessionService;
-
 
 public final class ScrollDeleteSubcommand {
 
   public int run(String[] args) {
-    // --- 解析参数 ---
     String id = null;
     boolean yes = false;
 
@@ -43,14 +41,13 @@ public final class ScrollDeleteSubcommand {
       return 2;
     }
 
-    // --- 权限：必须登录，且必须是上传者本人 ---
     SessionService session = new SessionService();
-    Optional<User> u = session.currentUser(); // 若你们返回 Optional<User>
+    Optional<User> u = session.currentUser();
     if (u.isEmpty()) {
       System.err.println("Forbidden: please login first.");
       return 1;
     }
-    String requesterIdKey = u.get().idKey(); // 按你们 User 的实际方法调整
+    String requesterIdKey = u.get().idKey();
 
     ScrollRepository repo = new FileScrollRepository();
     Optional<Scroll> os = repo.findById(id);
@@ -64,9 +61,8 @@ public final class ScrollDeleteSubcommand {
       return 1;
     }
 
-    // --- 确认提示 ---
     if (!yes) {
-      System.out.print("Delete scroll " + id + "? This cannot be undone. [y/N] ");
+      System.out.print("Delete scroll " + id + "? This cannot be undone. [y/n] ");
       BufferedReader br =
           new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
       String line;
@@ -83,15 +79,11 @@ public final class ScrollDeleteSubcommand {
       }
     }
 
-    // --- 真正删除：元数据 + 二进制 ---
     boolean ok = repo.deleteById(id);
     if (!ok) {
       System.err.println("Delete failed (persistence).");
       return 1;
     }
-
-    // 如果你们二进制路径不在 repo.deleteById 内部删除，这里可补 Files.deleteIfExists(...)
-    // 但下面的 FileScrollRepository#deleteById 已经一并删除了
 
     System.out.println("Deleted: " + id);
     return 0;
