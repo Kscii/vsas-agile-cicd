@@ -13,6 +13,9 @@ import org.soft2412.vsas.service.SessionService;
 
 public final class ScrollDeleteSubcommand {
 
+  static SessionService sessionOverride = null;
+  static ScrollRepository repoOverride = null;
+
   public int run(String[] args) {
     String id = null;
     boolean yes = false;
@@ -41,7 +44,7 @@ public final class ScrollDeleteSubcommand {
       return 2;
     }
 
-    SessionService session = new SessionService();
+    SessionService session = (sessionOverride != null) ? sessionOverride : new SessionService();
     Optional<User> u = session.currentUser();
     if (u.isEmpty()) {
       System.err.println("Forbidden: please login first.");
@@ -49,12 +52,13 @@ public final class ScrollDeleteSubcommand {
     }
     String requesterIdKey = u.get().idKey();
 
-    ScrollRepository repo = new FileScrollRepository();
+    ScrollRepository repo = (repoOverride != null) ? repoOverride : new FileScrollRepository();
     Optional<Scroll> os = repo.findById(id);
     if (os.isEmpty()) {
       System.err.println("Not found: " + id);
       return 1;
     }
+
     Scroll s = os.get();
     if (!s.uploaderIdKey().equals(requesterIdKey)) {
       System.err.println("Forbidden: only the uploader can delete this scroll.");
