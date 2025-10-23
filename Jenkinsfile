@@ -191,12 +191,10 @@ pipeline {
               if printf %s "${SRC_BRANCH:-}" | grep -Eiq '^(feat|feature)(/|-)'; then
                 MINOR=$((LT_MINOR + 1)); PATCH=0
 
-              # Merge commit 情况：仅当 PR 源分支以 feat/feature 开头时才算 minor
               elif printf %s "${MERGE_SUBJ}" \
                    | grep -Eiq '^Merge pull request #[0-9]+ from [^ ]+/(feat|feature)(/|-)'; then
                 MINOR=$((LT_MINOR + 1)); PATCH=0
 
-              # Squash/rebase 情况：commit 标题本身以 feat 开头
               elif printf %s "${MERGE_SUBJ}" | grep -Eiq '^feat([(:]|[/-])'; then
                 MINOR=$((LT_MINOR + 1)); PATCH=0
 
