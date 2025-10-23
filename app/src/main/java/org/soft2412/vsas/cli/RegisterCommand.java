@@ -1,5 +1,6 @@
 package org.soft2412.vsas.cli;
 
+import java.io.IOException;
 import java.io.PrintStream;
 import java.time.Instant;
 import java.util.Arrays;
@@ -49,7 +50,8 @@ public final class RegisterCommand implements Command {
 
   @Override
   public int run(String[] args) {
-    // Required by US-A1: username, password, email, phone, id-key
+    // Required by US-A1: username, password (or interactive prompt), email, phone,
+    // id-key
     String username = null, password = null, email = null, phone = null, idKey = null;
     String role = "USER"; // optional; default for this story
 
@@ -77,11 +79,8 @@ public final class RegisterCommand implements Command {
           /* ignore unknown for forward-compat */ }
     }
 
-    // Explicit null/blank checks
     if (username == null
         || username.trim().isEmpty()
-        || password == null
-        || password.trim().isEmpty()
         || email == null
         || email.trim().isEmpty()
         || phone == null
@@ -89,8 +88,30 @@ public final class RegisterCommand implements Command {
         || idKey == null
         || idKey.trim().isEmpty()) {
       err.println(
-          "Error: missing required flags. Usage: register --username <u> --password <p> --email <e> --phone <ph> --id-key <k>");
+          "Error: missing required flags. Usage: register --username <u> [--password <p>] --email <e> --phone <ph> --id-key <k>");
       return 2;
+    }
+
+    if (password == null || password.trim().isEmpty()) {
+      try {
+        char[] p1 = org.soft2412.vsas.cli.PasswordPrompt.read(out, "Password: ");
+        char[] p2 = org.soft2412.vsas.cli.PasswordPrompt.read(out, "Confirm password: ");
+        boolean match = Arrays.equals(p1, p2);
+        password = new String(p1);
+        Arrays.fill(p1, '\0');
+        Arrays.fill(p2, '\0');
+        if (!match) {
+          err.println("Error: Passwords do not match");
+          return 1;
+        }
+        if (password.trim().isEmpty()) {
+          err.println("Error: password cannot be empty");
+          return 1;
+        }
+      } catch (IOException ioe) {
+        err.println("Error: password prompt failed");
+        return 2;
+      }
     }
 
     // Sanitize fields for TSV safety
@@ -110,7 +131,7 @@ public final class RegisterCommand implements Command {
       // Repository interface doesn't throw checked exceptions; keep defensive catch.
     }
 
-    final String nonNullPassword = password; // proven non-null above
+    final String nonNullPassword = password; // ensured non-null above
     char[] pwdChars = null;
     try {
       // Salt + hash (never store plaintext)
