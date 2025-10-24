@@ -8,6 +8,7 @@ import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.*;
 import org.soft2412.vsas.security.PasswordHasher;
 
@@ -34,42 +35,42 @@ public class LoginCommandInteractiveTest {
     // Prepare one user with salted hash (password: Secret1!)
     char[] password = "Secret1!".toCharArray();
     byte[] salt = hasher.generateSalt(16);
-    String saltHex = PasswordHasher.bytesToHex(salt);
+    String saltHex = org.soft2412.vsas.security.PasswordHasher.bytesToHex(salt);
     String hashHex = hasher.hashToHex(password, salt);
 
-    String header =
-        String.join(
-                "\t",
-                "username",
-                "email",
-                "phone",
-                "idKey",
-                "role",
-                "passwordHash",
-                "salt",
-                "createdAt")
-            + "\n";
-    String row =
-        String.join(
-                "\t",
-                "alice",
-                "alice@example.com",
-                "0400",
-                "K-001",
-                "USER",
-                hashHex,
-                saltHex,
-                "2025-10-16T00:00:00Z")
-            + "\n";
+    String header = String.join(
+        "\t",
+        "username",
+        "email",
+        "phone",
+        "idKey",
+        "role",
+        "passwordHash",
+        "salt",
+        "createdAt")
+        + "\n";
+    String row = String.join(
+        "\t",
+        "alice",
+        "alice@example.com",
+        "0400",
+        "K-001",
+        "USER",
+        hashHex,
+        saltHex,
+        "2025-10-16T00:00:00Z")
+        + "\n";
 
     Files.writeString(usersTsv, header + row, StandardCharsets.UTF_8);
   }
 
   @AfterEach
   void tearDown() throws Exception {
-    if (Files.exists(usersTsv)) Files.delete(usersTsv);
+    if (Files.exists(usersTsv))
+      Files.delete(usersTsv);
     File d = dataDir.toFile();
-    if (d.exists()) d.delete();
+    if (d.exists())
+      d.delete();
 
     if (Files.exists(sessionFile)) {
       Files.delete(sessionFile);
@@ -86,27 +87,28 @@ public class LoginCommandInteractiveTest {
   }
 
   @Test
-  void login_withoutPassword_promptsTwice_andSucceeds_whenMatch() throws Exception {
-    // Arrange provider: same password twice
-    final char[][] answers = {"Secret1!".toCharArray(), "Secret1!".toCharArray()};
-    final int[] idx = {0};
+  void login_withoutPassword_promptsOnce_andSucceeds_withCorrectPassword() throws Exception {
+    // Arrange provider: prompt exactly once, return the correct password
+    final AtomicInteger calls = new AtomicInteger(0);
     PasswordPrompt.setTestProvider(
         (out, prompt) -> {
+          calls.incrementAndGet();
           if (out != null) {
             out.print(prompt);
             out.flush();
           }
-          return answers[Math.min(idx[0]++, answers.length - 1)];
+          return "Secret1!".toCharArray();
         });
 
     ByteArrayOutputStream outBuf = new ByteArrayOutputStream();
     ByteArrayOutputStream errBuf = new ByteArrayOutputStream();
     LoginCommand cmd = new LoginCommand(new PrintStream(outBuf), new PrintStream(errBuf), hasher);
 
-    int code = cmd.run(new String[] {"--username", "alice"});
+    int code = cmd.run(new String[] { "--username", "alice" });
 
     assertEquals(0, code);
     assertTrue(outBuf.toString(StandardCharsets.UTF_8).contains("Login success"));
+    assertEquals(1, calls.get(), "should prompt exactly once");
     assertTrue(Files.exists(sessionFile));
 
     Properties props = new Properties();
@@ -118,27 +120,28 @@ public class LoginCommandInteractiveTest {
   }
 
   @Test
-  void login_withoutPassword_fails_whenMismatch() {
-    // Arrange provider: different passwords
-    final char[][] answers = {"A1!".toCharArray(), "B2!".toCharArray()};
-    final int[] idx = {0};
+  void login_withoutPassword_promptsOnce_andFails_withWrongPassword() {
+    // Arrange provider: prompt exactly once, return a wrong password
+    final AtomicInteger calls = new AtomicInteger(0);
     PasswordPrompt.setTestProvider(
         (out, prompt) -> {
+          calls.incrementAndGet();
           if (out != null) {
             out.print(prompt);
             out.flush();
           }
-          return answers[Math.min(idx[0]++, answers.length - 1)];
+          return "totally-wrong".toCharArray();
         });
 
     ByteArrayOutputStream outBuf = new ByteArrayOutputStream();
     ByteArrayOutputStream errBuf = new ByteArrayOutputStream();
     LoginCommand cmd = new LoginCommand(new PrintStream(outBuf), new PrintStream(errBuf), hasher);
 
-    int code = cmd.run(new String[] {"--username", "alice"});
+    int code = cmd.run(new String[] { "--username", "alice" });
 
     assertNotEquals(0, code);
-    assertTrue(errBuf.toString(StandardCharsets.UTF_8).contains("Passwords do not match"));
+    assertTrue(errBuf.toString(StandardCharsets.UTF_8).contains("Invalid credentials"));
+    assertEquals(1, calls.get(), "should prompt exactly once");
     assertTrue(Files.notExists(sessionFile));
   }
 }

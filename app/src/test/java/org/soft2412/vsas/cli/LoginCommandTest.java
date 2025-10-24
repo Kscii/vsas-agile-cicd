@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,10 +17,8 @@ import org.soft2412.vsas.security.PasswordHasher;
 
 /**
  * Black-box tests for LoginCommand: - success with correct password using salted hash verification
- * - failure with wrong password
- *
- * <p>Tests prepare a data/users.tsv file under the project working directory with a single user row
- * and known salt/hash.
+ * - failure with wrong password - interactive prompt path (single prompt) - missing username fails
+ * fast with usage (no prompt)
  */
 public class LoginCommandTest {
 
@@ -78,7 +77,6 @@ public class LoginCommandTest {
 
   @AfterEach
   void tearDown() throws Exception {
-    // Clean up test data directory
     if (Files.exists(usersTsv)) Files.delete(usersTsv);
     File d = dataDir.toFile();
     if (d.exists()) d.delete();
@@ -94,6 +92,9 @@ public class LoginCommandTest {
     } else {
       System.setProperty("vsas.session.path", previousSessionProperty);
     }
+
+    // Ensure provider cleared between tests
+    PasswordPrompt.setTestProvider(null);
   }
 
   @Test
@@ -130,5 +131,53 @@ public class LoginCommandTest {
     String err = errBuf.toString(StandardCharsets.UTF_8);
     assertTrue(err.contains("Invalid credentials"), "stderr should contain invalid message");
     assertTrue(Files.notExists(sessionFile), "session file should not be created");
+  }
+
+  @Test
+  void login_promptsOnce_whenPasswordOmitted_andUsernameProvided() throws Exception {
+    // Arrange: provide a single canned password via PasswordPrompt
+    final char[] canned = "P@ssw0rd!".toCharArray();
+    final AtomicInteger calls = new AtomicInteger(0);
+    PasswordPrompt.setTestProvider(
+        (o, prompt) -> {
+          calls.incrementAndGet();
+          return canned.clone();
+        });
+
+    ByteArrayOutputStream outBuf = new ByteArrayOutputStream();
+    ByteArrayOutputStream errBuf = new ByteArrayOutputStream();
+    LoginCommand cmd = new LoginCommand(new PrintStream(outBuf), new PrintStream(errBuf), hasher);
+
+    // Act
+    int code = cmd.run(new String[] {"--username", "alice"});
+
+    // Assert
+    assertEquals(0, code);
+    assertEquals(1, calls.get(), "should prompt exactly once");
+    String out = outBuf.toString(StandardCharsets.UTF_8);
+    assertTrue(out.contains("Login success"));
+  }
+
+  @Test
+  void login_missingUsername_failsFast_withUsage_andNoPrompt() {
+    final AtomicInteger calls = new AtomicInteger(0);
+    PasswordPrompt.setTestProvider(
+        (o, prompt) -> {
+          calls.incrementAndGet();
+          return "x".toCharArray();
+        });
+
+    ByteArrayOutputStream outBuf = new ByteArrayOutputStream();
+    ByteArrayOutputStream errBuf = new ByteArrayOutputStream();
+    LoginCommand cmd = new LoginCommand(new PrintStream(outBuf), new PrintStream(errBuf), hasher);
+
+    int code = cmd.run(new String[] {}); // no args
+
+    assertEquals(2, code, "should return exit code 2 for usage error");
+    String err = errBuf.toString(StandardCharsets.UTF_8);
+    assertTrue(
+        err.contains("Error: missing required flags. Usage: login --username <u> [--password <p>]"),
+        "should print usage message");
+    assertEquals(0, calls.get(), "should not prompt for password when username is missing");
   }
 }
