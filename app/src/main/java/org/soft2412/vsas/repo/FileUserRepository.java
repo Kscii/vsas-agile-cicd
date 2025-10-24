@@ -8,6 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -147,12 +148,10 @@ public final class FileUserRepository implements UserRepository {
 
           String line;
           while ((line = br.readLine()) != null) {
-            String[] parts = line.split("\t", -1);
-            if (parts.length < cols.length) {
-              bw.write(line);
-              bw.write("\n");
-              continue;
-            }
+            String[] rawParts = line.split("\t", -1);
+            String[] parts =
+                rawParts.length < cols.length ? Arrays.copyOf(rawParts, cols.length) : rawParts;
+
             if (username.equals(parts[iUser])) {
               if (newEmail != null) {
                 parts[iEmail] = sanitize(newEmail);
@@ -167,14 +166,15 @@ public final class FileUserRepository implements UserRepository {
                 parts[iSalt] = PasswordHasher.bytesToHex(salt);
               }
               updated = true;
-              StringBuilder sb = new StringBuilder();
-              for (int i = 0; i < cols.length; i++) {
-                if (i > 0) sb.append('\t');
-                sb.append(i < parts.length ? parts[i] : "");
-              }
-              line = sb.toString();
             }
-            bw.write(line);
+
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < cols.length; i++) {
+              if (i > 0) sb.append('\t');
+              String value = i < parts.length ? parts[i] : "";
+              sb.append(value == null ? "" : value);
+            }
+            bw.write(sb.toString());
             bw.write("\n");
           }
         }
