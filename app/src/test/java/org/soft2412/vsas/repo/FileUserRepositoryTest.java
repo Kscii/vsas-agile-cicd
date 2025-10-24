@@ -180,4 +180,25 @@ public class FileUserRepositoryTest {
   void updateProfile_returnsFalse_whenUserMissing() throws Exception {
     assertFalse(repo.updateProfile("nope", "x@y", "0400", null));
   }
+
+  @Test
+  void updateProfile_handlesRowsWithMissingTrailingColumns() throws Exception {
+    Files.createDirectories(usersTsv.getParent());
+    String header =
+        "username\temail\tphone\tidKey\trole\tpasswordHash\tsalt\tcreatedAt"
+            + System.lineSeparator();
+    String legacyRow =
+        String.join("\t", "alice", "a@x", "0400", "K-001", "USER", "h".repeat(64), "s".repeat(32))
+            + System.lineSeparator();
+    Files.writeString(usersTsv, header + legacyRow, StandardCharsets.UTF_8);
+
+    assertTrue(repo.updateProfile("alice", "alice@new", null, null));
+
+    String[] lines = Files.readString(usersTsv, StandardCharsets.UTF_8).split("\\R");
+    assertTrue(lines.length >= 2);
+    String[] parts = lines[1].split("\t", -1);
+    assertEquals(8, parts.length, "row should expand to full column count");
+    assertEquals("alice@new", parts[1]);
+    assertEquals("0400", parts[2], "unchanged fields should remain intact");
+  }
 }
