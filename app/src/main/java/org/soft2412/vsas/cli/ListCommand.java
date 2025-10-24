@@ -124,13 +124,6 @@ public final class ListCommand implements Command {
       System.out.println(formatFixedRow(s));
     }
 
-    // ---- Legacy output for backwards-compatibility (tests expect this) ----
-    System.out.println("id | name | uploader | uploadDate");
-    for (Scroll s : filtered) {
-      System.out.println(
-          s.id() + " | " + s.name() + " | " + s.uploaderIdKey() + " | " + s.uploadDate());
-    }
-
     return 0;
   }
 
