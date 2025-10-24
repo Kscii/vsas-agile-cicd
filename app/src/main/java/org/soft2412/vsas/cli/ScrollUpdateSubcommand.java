@@ -131,6 +131,7 @@ public final class ScrollUpdateSubcommand {
             old.uploaderIdKey(),
             old.uploadDate(),
             finalPayloadPath,
+            old.uploadCount(),
             old.downloadCount());
 
     boolean ok = repo.update(updated);

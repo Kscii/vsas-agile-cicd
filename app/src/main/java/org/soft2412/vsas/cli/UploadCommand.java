@@ -62,7 +62,7 @@ public final class UploadCommand implements Command {
       // Save metadata
       String uploadDate =
           DateTimeFormatter.ISO_INSTANT.format(Instant.now().atOffset(ZoneOffset.UTC));
-      Scroll scroll = new Scroll(id, name, user.get().idKey(), uploadDate, dest.toString(), 0L);
+      Scroll scroll = new Scroll(id, name, user.get().idKey(), uploadDate, dest.toString(), 1L, 0L);
       if (!scrolls.save(scroll)) {
         System.err.println("upload: failed to save metadata");
         return 2;

@@ -82,6 +82,49 @@ public final class FileScrollRepository implements ScrollRepository {
     }
   }
 
+  @Override
+  public boolean incrementDownloadCount(String id) {
+    try {
+      if (!Files.exists(dataFile)) return false;
+      List<String> lines = Files.readAllLines(dataFile, StandardCharsets.UTF_8);
+      boolean updated = false;
+      for (int i = 0; i < lines.size(); i++) {
+        String line = lines.get(i);
+        if (line == null || line.isBlank()) continue;
+        String[] parts = line.split("\t", -1);
+        if (parts.length >= 1 && id.equals(parts[0])) {
+          Optional<Scroll> sOpt = parseTsv(line);
+          if (sOpt.isEmpty()) continue;
+          Scroll s = sOpt.get();
+          Scroll updatedScroll =
+              new Scroll(
+                  s.id(),
+                  s.name(),
+                  s.uploaderIdKey(),
+                  s.uploadDate(),
+                  s.filePath(),
+                  s.uploadCount(),
+                  s.downloadCount() + 1);
+          lines.set(i, toTsv(updatedScroll));
+          updated = true;
+          break;
+        }
+      }
+      if (!updated) return false;
+      Files.createDirectories(dataFile.getParent());
+      Files.write(
+          dataFile,
+          String.join(System.lineSeparator(), lines)
+              .concat(System.lineSeparator())
+              .getBytes(StandardCharsets.UTF_8),
+          StandardOpenOption.TRUNCATE_EXISTING,
+          StandardOpenOption.CREATE);
+      return true;
+    } catch (IOException e) {
+      return false;
+    }
+  }
+
   private Optional<Scroll> parseTsv(String line) {
     try {
       String[] p = line.split("\t", -1);
@@ -91,12 +134,28 @@ public final class FileScrollRepository implements ScrollRepository {
       String uploaderIdKey = p[2];
       String uploadDate = p[3];
       String filePath = p[4];
+      long uploadCount = 0L;
       long downloadCount = 0L;
-      try {
-        downloadCount = Long.parseLong(p[5]);
-      } catch (NumberFormatException ignore) {
+      if (p.length >= 7) {
+        try {
+          uploadCount = Long.parseLong(p[5]);
+        } catch (NumberFormatException ignore) {
+        }
+        try {
+          downloadCount = Long.parseLong(p[6]);
+        } catch (NumberFormatException ignore) {
+        }
+      } else {
+        // Backward compatibility: old format had only downloadCount at index 5.
+        try {
+          downloadCount = Long.parseLong(p[5]);
+        } catch (NumberFormatException ignore) {
+        }
+        // Assume at least one upload created the record
+        uploadCount = 1L;
       }
-      return Optional.of(new Scroll(id, name, uploaderIdKey, uploadDate, filePath, downloadCount));
+      return Optional.of(
+          new Scroll(id, name, uploaderIdKey, uploadDate, filePath, uploadCount, downloadCount));
     } catch (Exception e) {
       return Optional.empty();
     }
@@ -110,6 +169,7 @@ public final class FileScrollRepository implements ScrollRepository {
         nullToEmpty(s.uploaderIdKey()),
         nullToEmpty(s.uploadDate()),
         nullToEmpty(s.filePath()),
+        Long.toString(s.uploadCount()),
         Long.toString(s.downloadCount()));
   }
 

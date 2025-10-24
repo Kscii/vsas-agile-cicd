@@ -108,6 +108,7 @@ class ScrollUpdateSubcommandTest {
             "ID-OWNER",
             Instant.parse("2025-01-01T00:00:00Z").toString(),
             payload.toString(),
+            0L,
             0L);
     assertTrue(repo.save(sc));
 
@@ -134,6 +135,7 @@ class ScrollUpdateSubcommandTest {
             "ID-2",
             Instant.parse("2025-01-02T00:00:00Z").toString(),
             payload.toString(),
+            0L,
             5L);
     assertTrue(repo.save(sc));
 
@@ -163,6 +165,7 @@ class ScrollUpdateSubcommandTest {
             "ID-3",
             Instant.parse("2025-01-03T00:00:00Z").toString(),
             payload.toString(),
+            0L,
             0L);
     assertTrue(repo.save(sc));
 
@@ -193,6 +196,7 @@ class ScrollUpdateSubcommandTest {
             "ID-4",
             Instant.parse("2025-01-04T00:00:00Z").toString(),
             payload.toString(),
+            0L,
             2L);
     assertTrue(repo.save(sc));
 
@@ -227,6 +231,7 @@ class ScrollUpdateSubcommandTest {
             "ID-5",
             Instant.parse("2025-01-05T00:00:00Z").toString(),
             payload.toString(),
+            0L,
             9L);
     assertTrue(repo.save(sc));
 
@@ -256,6 +261,7 @@ class ScrollUpdateSubcommandTest {
             "ID-6",
             Instant.parse("2025-01-06T00:00:00Z").toString(),
             payload.toString(),
+            0L,
             0L);
     assertTrue(repo.save(sc));
 

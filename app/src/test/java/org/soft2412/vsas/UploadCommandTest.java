@@ -12,7 +12,10 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.soft2412.vsas.cli.CommandDispatcher;
+import org.soft2412.vsas.model.Scroll;
 import org.soft2412.vsas.model.User;
+import org.soft2412.vsas.repo.FileScrollRepository;
+import org.soft2412.vsas.repo.ScrollRepository;
 import org.soft2412.vsas.service.SessionService;
 
 public class UploadCommandTest {
@@ -67,6 +70,28 @@ public class UploadCommandTest {
 
     assertTrue(Files.exists(Path.of("data", "files", "s1.bin")));
     assertTrue(Files.exists(Path.of("data", "scrolls.tsv")));
+  }
+
+  @Test
+  public void uploadSetsUploadAndDownloadCounters() throws IOException {
+    writeSession("charlie", "u-999", "user");
+    Path tmp = Path.of("data", "tmp");
+    Files.createDirectories(tmp);
+    Path src = tmp.resolve("sample2.bin");
+    Files.writeString(src, "hello2", StandardCharsets.UTF_8);
+
+    int code =
+        new CommandDispatcher()
+            .dispatch(
+                new String[] {
+                  "upload", "--id", "s_cnt", "--name", "Cnt", "--file", src.toString()
+                });
+    assertEquals(0, code);
+
+    ScrollRepository repo = new FileScrollRepository();
+    Scroll s = repo.findById("s_cnt").orElseThrow();
+    assertEquals(1L, s.uploadCount());
+    assertEquals(0L, s.downloadCount());
   }
 
   @Test

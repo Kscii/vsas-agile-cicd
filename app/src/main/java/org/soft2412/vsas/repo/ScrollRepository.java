@@ -16,4 +16,6 @@ public interface ScrollRepository {
   boolean deleteById(String id);
 
   boolean update(Scroll updated);
+  /** Increment the download counter for the given scroll id. */
+  boolean incrementDownloadCount(String id);
 }

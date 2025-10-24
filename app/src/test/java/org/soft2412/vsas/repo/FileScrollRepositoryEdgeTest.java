@@ -47,7 +47,7 @@ public class FileScrollRepositoryEdgeTest {
 
   private static Scroll sc(String id, String name, String uploader, String filePath) {
     return new Scroll(
-        id, name, uploader, Instant.parse("2025-01-01T00:00:00Z").toString(), filePath, 0L);
+        id, name, uploader, Instant.parse("2025-01-01T00:00:00Z").toString(), filePath, 1L, 0L);
   }
 
   @Test
@@ -103,18 +103,19 @@ public class FileScrollRepositoryEdgeTest {
 
   @Test
   void save_nullFields_writesEmptyCells() throws Exception {
-    // name and filePath are null → should be written as empty TSV cells
+    // name and filePath are null - should be written as empty TSV cells
     Scroll x =
-        new Scroll("s3", null, "U3", Instant.parse("2025-02-02T00:00:00Z").toString(), null, 5L);
+        new Scroll(
+            "s3", null, "U3", Instant.parse("2025-02-02T00:00:00Z").toString(), null, 0L, 5L);
 
     assertTrue(repo.save(x));
 
     String raw = Files.readString(scrollsPath, StandardCharsets.UTF_8);
-    // We expect something like: s3\t\tU3\t2025-02-02T00:00:00Z\t\t5
+    // We expect something like: s3\t\tU3\t2025-02-02T00:00:00Z\t\t0\t5
     assertTrue(raw.contains("s3\t"), "row should start with id s3 (or include it as a field)");
     assertTrue(raw.contains("\t\tU3"), "null name should produce an empty TSV cell before U3");
     assertTrue(
-        raw.contains("\t2025-02-02T00:00:00Z\t\t5"),
-        "null filePath should produce another empty cell");
+        raw.contains("\t2025-02-02T00:00:00Z\t\t0\t5"),
+        "null filePath should produce another empty cell and include counters");
   }
 }

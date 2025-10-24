@@ -101,6 +101,7 @@ class ScrollDeleteSubcommandTest {
             "ID-OWNER",
             Instant.parse("2025-01-01T00:00:00Z").toString(),
             payload.toString(),
+            0L,
             0L);
     assertTrue(repo.save(s));
 
@@ -127,6 +128,7 @@ class ScrollDeleteSubcommandTest {
             "ID-2",
             Instant.parse("2025-01-02T00:00:00Z").toString(),
             payload.toString(),
+            0L,
             0L);
     assertTrue(repo.save(s));
 
@@ -155,6 +157,7 @@ class ScrollDeleteSubcommandTest {
             "ID-3",
             Instant.parse("2025-01-03T00:00:00Z").toString(),
             payload.toString(),
+            0L,
             0L);
     assertTrue(repo.save(s));
 
