@@ -6,6 +6,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.Arrays;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -106,5 +107,98 @@ public class FileUserRepositoryTest {
     var byUser = repo.findByUsername("alice").orElseThrow();
     assertEquals("K-001", byUser.idKey());
     assertEquals("USER", byUser.role());
+  }
+
+  @Test
+  void updateProfile_updatesContactFields_andKeepsOtherColumns() throws Exception {
+    User alice =
+        new User(
+            "alice",
+            "a@x",
+            "0400",
+            "K-001",
+            "USER",
+            "h".repeat(64),
+            "s".repeat(32),
+            Instant.parse("2025-01-01T00:00:00Z"));
+    User bob =
+        new User(
+            "bob",
+            "b@x",
+            "0401",
+            "K-002",
+            "VISITOR",
+            "x".repeat(64),
+            "y".repeat(32),
+            Instant.parse("2025-01-02T00:00:00Z"));
+
+    assertTrue(repo.save(alice));
+    assertTrue(repo.save(bob));
+
+    assertTrue(repo.updateProfile("alice", "alice@new", "0499", null));
+
+    var updated = repo.findByUsername("alice").orElseThrow();
+    assertEquals("alice@new", updated.email());
+    assertEquals("0499", updated.phone());
+    assertEquals(alice.passwordHash(), updated.passwordHash(), "hash should be unchanged");
+    assertEquals(alice.salt(), updated.salt(), "salt should be unchanged");
+
+    var untouched = repo.findByUsername("bob").orElseThrow();
+    assertEquals("b@x", untouched.email(), "other rows must remain untouched");
+  }
+
+  @Test
+  void updateProfile_changesPasswordHashAndSalt() throws Exception {
+    User alice =
+        new User(
+            "alice",
+            "a@x",
+            "0400",
+            "K-001",
+            "USER",
+            "h".repeat(64),
+            "s".repeat(32),
+            Instant.parse("2025-01-01T00:00:00Z"));
+
+    assertTrue(repo.save(alice));
+
+    char[] newPwd = "S3cretNew!".toCharArray();
+    try {
+      assertTrue(repo.updateProfile("alice", null, null, newPwd));
+    } finally {
+      Arrays.fill(newPwd, '\0');
+    }
+
+    var updated = repo.findByUsername("alice").orElseThrow();
+    assertNotEquals(alice.passwordHash(), updated.passwordHash());
+    assertNotEquals(alice.salt(), updated.salt());
+    assertEquals(64, updated.passwordHash().length(), "hash must stay 64 hex chars");
+    assertEquals(32, updated.salt().length(), "salt must stay 32 hex chars");
+  }
+
+  @Test
+  void updateProfile_returnsFalse_whenUserMissing() throws Exception {
+    assertFalse(repo.updateProfile("nope", "x@y", "0400", null));
+  }
+
+  @Test
+  void updateProfile_handlesRowsWithMissingTrailingColumns() throws Exception {
+    Files.createDirectories(usersTsv.getParent());
+    String header =
+        "username\temail\tphone\tidKey\trole\tpasswordHash\tsalt\tcreatedAt"
+            + System.lineSeparator();
+    String legacyRow =
+        String.join("\t", "alice", "a@x", "0400", "K-001", "USER", "h".repeat(64), "s".repeat(32))
+            + System.lineSeparator();
+    Files.writeString(usersTsv, header + legacyRow, StandardCharsets.UTF_8);
+
+    assertTrue(repo.updateProfile("alice", "alice@new", null, null));
+
+    String[] lines = Files.readString(usersTsv, StandardCharsets.UTF_8).split("\\R");
+    assertTrue(lines.length >= 2);
+    String[] parts = lines[1].split("\t", -1);
+    assertEquals(8, parts.length, "row should expand to full column count");
+    assertEquals("alice@new", parts[1]);
+    assertEquals("0400", parts[2], "unchanged fields should remain intact");
   }
 }

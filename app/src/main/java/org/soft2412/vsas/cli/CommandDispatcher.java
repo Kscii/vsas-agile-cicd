@@ -7,7 +7,7 @@ public final class CommandDispatcher {
     if (args == null || args.length == 0) {
       System.out.println("Usage: <command> [options]");
       System.out.println(
-          "Commands: register, login, logout, whoami, list, upload, download, scroll, preview");
+          "Commands: register, login, logout, whoami, list, upload, download, scroll, preview, profile");
       // Return success for help/usage to allow `gradlew run` without args
       return 0;
     }
@@ -32,6 +32,8 @@ public final class CommandDispatcher {
         return new ScrollCommand().run(opts);
       case "preview":
         return new PreviewCommand().run(opts);
+      case "profile":
+        return new ProfileUpdateCommand().run(opts);
       default:
         System.err.println("Unknown command: " + cmd);
         return 2;
