@@ -38,39 +38,39 @@ public class LoginCommandInteractiveTest {
     String saltHex = org.soft2412.vsas.security.PasswordHasher.bytesToHex(salt);
     String hashHex = hasher.hashToHex(password, salt);
 
-    String header = String.join(
-        "\t",
-        "username",
-        "email",
-        "phone",
-        "idKey",
-        "role",
-        "passwordHash",
-        "salt",
-        "createdAt")
-        + "\n";
-    String row = String.join(
-        "\t",
-        "alice",
-        "alice@example.com",
-        "0400",
-        "K-001",
-        "USER",
-        hashHex,
-        saltHex,
-        "2025-10-16T00:00:00Z")
-        + "\n";
+    String header =
+        String.join(
+                "\t",
+                "username",
+                "email",
+                "phone",
+                "idKey",
+                "role",
+                "passwordHash",
+                "salt",
+                "createdAt")
+            + "\n";
+    String row =
+        String.join(
+                "\t",
+                "alice",
+                "alice@example.com",
+                "0400",
+                "K-001",
+                "USER",
+                hashHex,
+                saltHex,
+                "2025-10-16T00:00:00Z")
+            + "\n";
 
     Files.writeString(usersTsv, header + row, StandardCharsets.UTF_8);
   }
 
   @AfterEach
   void tearDown() throws Exception {
-    if (Files.exists(usersTsv))
-      Files.delete(usersTsv);
+    if (Files.exists(usersTsv)) Files.delete(usersTsv);
     File d = dataDir.toFile();
-    if (d.exists())
-      d.delete();
+    if (d.exists()) d.delete();
 
     if (Files.exists(sessionFile)) {
       Files.delete(sessionFile);
@@ -104,7 +104,7 @@ public class LoginCommandInteractiveTest {
     ByteArrayOutputStream errBuf = new ByteArrayOutputStream();
     LoginCommand cmd = new LoginCommand(new PrintStream(outBuf), new PrintStream(errBuf), hasher);
 
-    int code = cmd.run(new String[] { "--username", "alice" });
+    int code = cmd.run(new String[] {"--username", "alice"});
 
     assertEquals(0, code);
     assertTrue(outBuf.toString(StandardCharsets.UTF_8).contains("Login success"));
@@ -137,7 +137,7 @@ public class LoginCommandInteractiveTest {
     ByteArrayOutputStream errBuf = new ByteArrayOutputStream();
     LoginCommand cmd = new LoginCommand(new PrintStream(outBuf), new PrintStream(errBuf), hasher);
 
-    int code = cmd.run(new String[] { "--username", "alice" });
+    int code = cmd.run(new String[] {"--username", "alice"});
 
     assertNotEquals(0, code);
     assertTrue(errBuf.toString(StandardCharsets.UTF_8).contains("Invalid credentials"));

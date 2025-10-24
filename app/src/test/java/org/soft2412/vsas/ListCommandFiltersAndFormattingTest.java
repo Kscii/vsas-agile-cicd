@@ -24,6 +24,7 @@ public class ListCommandFiltersAndFormattingTest {
   private ByteArrayOutputStream errBuf;
 
   private Path dataFile;
+  private static final String TABLE_FMT = "%-12s  %-30s  %-14s  %-20s";
 
   @BeforeEach
   public void setup() throws IOException {
@@ -111,10 +112,13 @@ public class ListCommandFiltersAndFormattingTest {
     assertEquals(0, code);
 
     String out = outBuf.toString(StandardCharsets.UTF_8);
-    assertTrue(out.contains("id | name | uploader | uploadDate"));
-    assertTrue(out.contains("s10 | Title One | u-1 | 2025-01-01T00:00:00Z"));
-    assertFalse(out.contains("s11 |"));
-    assertFalse(out.contains("s12 |"));
+    String expectedHeader = String.format(TABLE_FMT, "id", "name", "uploader", "uploadDate");
+    String expectedRow =
+        String.format(TABLE_FMT, "s10", "Title One", "u-1", "2025-01-01T00:00:00Z");
+    assertTrue(out.contains(expectedHeader));
+    assertTrue(out.contains(expectedRow));
+    assertFalse(out.contains("s11"));
+    assertFalse(out.contains("s12"));
     assertEquals("", errBuf.toString(StandardCharsets.UTF_8));
   }
 
@@ -137,7 +141,7 @@ public class ListCommandFiltersAndFormattingTest {
 
   @Test
   public void fixedWidth_table_isStable_andHardCuts() {
-    // No filters: we should see legacy header, then fixed header, then rows
+    // No filters: expect fixed-width header followed by rows
     int code = new CommandDispatcher().dispatch(new String[] {"list"});
     assertEquals(0, code);
     String out = outBuf.toString(StandardCharsets.UTF_8);

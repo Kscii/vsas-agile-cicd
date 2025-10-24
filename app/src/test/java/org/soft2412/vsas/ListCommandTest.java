@@ -17,6 +17,8 @@ public class ListCommandTest {
   private final PrintStream originalOut = System.out;
   private ByteArrayOutputStream out;
 
+  private static final String TABLE_FMT = "%-12s  %-30s  %-14s  %-20s";
+
   @BeforeEach
   public void setup() throws IOException {
     out = new ByteArrayOutputStream();
@@ -50,8 +52,10 @@ public class ListCommandTest {
     int code = new CommandDispatcher().dispatch(new String[] {"list"});
     assertEquals(0, code);
     String outStr = out.toString();
-    assertTrue(outStr.contains("id | name | uploader | uploadDate"));
-    assertTrue(outStr.contains("s10 | Title | u-1 | 2025-01-01T00:00:00Z"));
+    String expectedHeader = String.format(TABLE_FMT, "id", "name", "uploader", "uploadDate");
+    String expectedRow = String.format(TABLE_FMT, "s10", "Title", "u-1", "2025-01-01T00:00:00Z");
+    assertTrue(outStr.contains(expectedHeader));
+    assertTrue(outStr.contains(expectedRow));
   }
 
   private void cleanupDataDir() throws IOException {
