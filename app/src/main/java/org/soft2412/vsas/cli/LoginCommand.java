@@ -68,19 +68,18 @@ public final class LoginCommand implements Command {
       }
     }
 
-    // If password flag omitted/blank, prompt interactively (two times)
+    // If username is missing, do not prompt for password; fail fast with usage.
+    if (username == null || username.trim().isEmpty()) {
+      err.println("Error: missing required flags. Usage: login --username <u> [--password <p>]");
+      return 2;
+    }
+
+    // If password flag omitted/blank, prompt interactively ONCE
     if (password == null || password.trim().isEmpty()) {
       try {
-        char[] p1 = org.soft2412.vsas.cli.PasswordPrompt.read(out, "Password: ");
-        char[] p2 = org.soft2412.vsas.cli.PasswordPrompt.read(out, "Confirm password: ");
-        boolean match = Arrays.equals(p1, p2);
-        password = new String(p1);
-        Arrays.fill(p1, '\0');
-        Arrays.fill(p2, '\0');
-        if (!match) {
-          err.println("Error: Passwords do not match");
-          return 1;
-        }
+        char[] p = org.soft2412.vsas.cli.PasswordPrompt.read(out, "Password: ");
+        password = new String(p);
+        Arrays.fill(p, '\0');
         if (password.trim().isEmpty()) {
           err.println("Error: password cannot be empty");
           return 1;
@@ -91,11 +90,8 @@ public final class LoginCommand implements Command {
       }
     }
 
-    // Explicit null/blank checks
-    if (username == null
-        || username.trim().isEmpty()
-        || password == null
-        || password.trim().isEmpty()) {
+    // Explicit null/blank checks for password after prompt/flag
+    if (password == null || password.trim().isEmpty()) {
       err.println("Error: missing required flags. Usage: login --username <u> [--password <p>]");
       return 2;
     }
