@@ -122,7 +122,7 @@ public final class ProfileUpdateCommand implements Command {
         Arrays.fill(first, '\0');
       } catch (IOException ioe) {
         err.println("Error: password prompt failed");
-        return 2;
+        return 3;
       }
     }
 
@@ -130,7 +130,7 @@ public final class ProfileUpdateCommand implements Command {
       boolean ok = repo.updateProfile(username, newEmail, newPhone, passwordToSet);
       if (!ok) {
         err.println("Error: unable to update profile");
-        return 2;
+        return 3;
       }
     } finally {
       if (passwordToSet != null) {

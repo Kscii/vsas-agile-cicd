@@ -125,7 +125,7 @@ public class ListCommandFiltersAndFormattingTest {
   @Test
   public void invalidDate_forFrom_returnsExit1_andMessage() {
     int code = new CommandDispatcher().dispatch(new String[] {"list", "--from", "2025/01/01"});
-    assertEquals(1, code);
+    assertEquals(2, code);
     String err = errBuf.toString(StandardCharsets.UTF_8);
     assertTrue(err.contains("list: invalid date for --from (expected yyyy-MM-dd)"));
   }

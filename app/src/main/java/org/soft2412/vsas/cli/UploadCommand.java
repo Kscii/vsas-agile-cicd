@@ -38,18 +38,18 @@ public final class UploadCommand implements Command {
     Optional<User> user = sessions.currentUser();
     if (user.isEmpty()) {
       System.err.println("upload: login required");
-      return 2;
+      return 1;
     }
 
     Path src = Path.of(file);
     if (!Files.exists(src)) {
       System.err.println("upload: file not found");
-      return 2;
+      return 1;
     }
 
     if (scrolls.existsId(id)) {
       System.err.println("upload: id already exists");
-      return 2;
+      return 1;
     }
 
     try {
@@ -65,14 +65,14 @@ public final class UploadCommand implements Command {
       Scroll scroll = new Scroll(id, name, user.get().idKey(), uploadDate, dest.toString(), 1L, 0L);
       if (!scrolls.save(scroll)) {
         System.err.println("upload: failed to save metadata");
-        return 2;
+        return 3;
       }
 
       System.out.println("upload: success");
       return 0;
     } catch (Exception e) {
       System.err.println("upload: unexpected error");
-      return 2;
+      return 3;
     }
   }
 

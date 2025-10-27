@@ -145,7 +145,7 @@ class ProfileUpdateCommandTest {
 
     int code = newCommand().run(new String[] {"update", "--email", "alice@new"});
 
-    assertEquals(2, code);
+    assertEquals(3, code);
     assertTrue(repo.updateCalled);
     assertTrue(stderr().contains("unable to update profile"));
     assertTrue(Files.exists(sessionFile), "session should remain on failure");

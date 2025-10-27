@@ -86,7 +86,7 @@ public final class LoginCommand implements Command {
         }
       } catch (IOException ioe) {
         err.println("Error: password prompt failed");
-        return 2;
+        return 3;
       }
     }
 
@@ -132,7 +132,7 @@ public final class LoginCommand implements Command {
         User user = row.toUser(username);
         if (!sessions.login(user)) {
           err.println("Error: unable to persist session");
-          return 2;
+          return 3;
         }
         out.println("Login success");
         return 0;
@@ -142,7 +142,7 @@ public final class LoginCommand implements Command {
       }
     } catch (IOException ioe) {
       err.println("Error: cannot read users file");
-      return 2;
+      return 3;
     } finally {
       if (pwdChars != null) {
         Arrays.fill(pwdChars, '\0'); // best-effort wipe

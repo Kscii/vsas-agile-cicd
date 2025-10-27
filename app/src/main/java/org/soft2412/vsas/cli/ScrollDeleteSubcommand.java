@@ -71,7 +71,7 @@ public final class ScrollDeleteSubcommand {
         line = br.readLine();
       } catch (IOException e) {
         System.err.println("I/O error: " + e.getMessage());
-        return 1;
+        return 3;
       }
       String ans = line == null ? "" : line.trim().toLowerCase();
       if (!(ans.equals("y") || ans.equals("yes"))) {
@@ -83,7 +83,7 @@ public final class ScrollDeleteSubcommand {
     boolean ok = repo.deleteById(id);
     if (!ok) {
       System.err.println("Delete failed (persistence).");
-      return 1;
+      return 3;
     }
 
     System.out.println("Deleted: " + id);

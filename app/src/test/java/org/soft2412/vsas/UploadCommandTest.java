@@ -114,7 +114,7 @@ public class UploadCommandTest {
         new CommandDispatcher()
             .dispatch(
                 new String[] {"upload", "--id", "dup1", "--name", "B", "--file", src.toString()});
-    assertEquals(2, second);
+    assertEquals(1, second);
     assertTrue(err.toString().contains("id already exists"));
   }
 
@@ -130,7 +130,7 @@ public class UploadCommandTest {
                 new String[] {
                   "upload", "--id", "s2", "--name", "N", "--file", "data/tmp/missing.bin"
                 });
-    assertEquals(2, code);
+    assertEquals(1, code);
     assertTrue(err.toString().contains("login required"));
   }
 
@@ -141,7 +141,7 @@ public class UploadCommandTest {
         new CommandDispatcher()
             .dispatch(
                 new String[] {"upload", "--id", "s3", "--name", "N", "--file", "no/such/file.bin"});
-    assertEquals(2, code);
+    assertEquals(1, code);
     assertTrue(err.toString().contains("file not found"));
   }
 

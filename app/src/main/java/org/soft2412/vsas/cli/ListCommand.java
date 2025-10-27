@@ -56,7 +56,7 @@ public final class ListCommand implements Command {
                 fromDate = LocalDate.parse(v, FROM_TO_FMT);
               } catch (DateTimeParseException ex) {
                 System.err.println("list: invalid date for --from (expected yyyy-MM-dd)");
-                return 1;
+                return 2;
               }
             }
             break;
@@ -67,7 +67,7 @@ public final class ListCommand implements Command {
                 toDate = LocalDate.parse(v, FROM_TO_FMT);
               } catch (DateTimeParseException ex) {
                 System.err.println("list: invalid date for --to (expected yyyy-MM-dd)");
-                return 1;
+                return 2;
               }
             }
             break;

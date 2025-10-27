@@ -95,12 +95,12 @@ public final class ScrollUpdateSubcommand {
         BufferedReader br =
             new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
         String line;
-        try {
-          line = br.readLine();
-        } catch (IOException e) {
-          System.err.println("I/O error: " + e.getMessage());
-          return 1;
-        }
+      try {
+        line = br.readLine();
+      } catch (IOException e) {
+        System.err.println("I/O error: " + e.getMessage());
+        return 3;
+      }
         String ans = line == null ? "" : line.trim().toLowerCase();
         if (!(ans.equals("y") || ans.equals("yes"))) {
           System.out.println("Aborted.");
@@ -119,7 +119,7 @@ public final class ScrollUpdateSubcommand {
           Files.deleteIfExists(tmp);
         } catch (IOException ignore) {
         }
-        return 1;
+        return 3;
       }
     }
 
@@ -137,7 +137,7 @@ public final class ScrollUpdateSubcommand {
     boolean ok = repo.update(updated);
     if (!ok) {
       System.err.println("Update failed (persistence).");
-      return 1;
+      return 3;
     }
 
     System.out.println("Updated: " + id);
