@@ -63,6 +63,9 @@ class ScrollUpdateSubcommandTest {
 
   @Test
   void missingIdOrNoFields_printsUsage_exit2() {
+    SessionService s = new SessionService();
+    assertTrue(s.login(new User("u", "", "", "U1", "USER", "", "")));
+
     int c1 = new ScrollUpdateSubcommand().run(new String[] {"--name", "N"});
     assertEquals(2, c1);
     assertTrue(errBuf.toString(StandardCharsets.UTF_8).toLowerCase().contains("usage"));
@@ -70,8 +73,6 @@ class ScrollUpdateSubcommandTest {
     outBuf.reset();
     errBuf.reset();
 
-    SessionService s = new SessionService();
-    assertTrue(s.login(new User("u", "", "", "U1", "USER", "", "")));
     int c2 = new ScrollUpdateSubcommand().run(new String[] {"--id", "S"});
     assertEquals(2, c2);
     assertTrue(errBuf.toString(StandardCharsets.UTF_8).toLowerCase().contains("nothing to update"));

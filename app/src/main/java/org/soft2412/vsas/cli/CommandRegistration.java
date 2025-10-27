@@ -9,16 +9,19 @@ final class CommandRegistration {
   private final Function<CommandRegistry, Command> factory;
   private final String description;
   private final CommandHelp help;
+  private final Access access;
 
   private CommandRegistration(
       List<String> path,
       Function<CommandRegistry, Command> factory,
       String description,
-      CommandHelp help) {
+      CommandHelp help,
+      Access access) {
     this.path = List.copyOf(path);
     this.factory = Objects.requireNonNull(factory, "factory");
     this.description = Objects.requireNonNull(description, "description");
     this.help = Objects.requireNonNull(help, "help");
+    this.access = Objects.requireNonNull(access, "access");
   }
 
   static Builder builder(String... tokens) {
@@ -49,6 +52,14 @@ final class CommandRegistration {
     return factory.apply(registry);
   }
 
+  Access access() {
+    return access;
+  }
+
+  boolean isVisibleTo(boolean authenticated) {
+    return access == Access.PUBLIC || authenticated;
+  }
+
   boolean matches(String[] args) {
     if (args == null || args.length < path.size()) {
       return false;
@@ -66,6 +77,7 @@ final class CommandRegistration {
     private Function<CommandRegistry, Command> factory;
     private String description;
     private CommandHelp help;
+    private Access access = Access.PUBLIC;
 
     private Builder(String... tokens) {
       Objects.requireNonNull(tokens, "tokens");
@@ -102,6 +114,11 @@ final class CommandRegistration {
       return this;
     }
 
+    Builder access(Access access) {
+      this.access = Objects.requireNonNull(access, "access");
+      return this;
+    }
+
     CommandRegistration build() {
       if (factory == null) {
         throw new IllegalStateException("Factory not set");
@@ -112,7 +129,12 @@ final class CommandRegistration {
       if (help == null) {
         throw new IllegalStateException("Help metadata not set");
       }
-      return new CommandRegistration(path, factory, description, help);
+      return new CommandRegistration(path, factory, description, help, access);
     }
+  }
+
+  enum Access {
+    PUBLIC,
+    AUTHENTICATED
   }
 }

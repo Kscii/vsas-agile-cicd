@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import org.soft2412.vsas.service.SessionService;
 
 public final class HelpCommand implements Command {
   private final CommandRegistry registry;
@@ -23,8 +24,9 @@ public final class HelpCommand implements Command {
 
   @Override
   public int run(String[] args) {
+    boolean authenticated = new SessionService().currentUser().isPresent();
     if (args == null || args.length == 0) {
-      printSummary();
+      printSummary(authenticated);
       return 0;
     }
     List<String> tokens = Arrays.asList(args);
@@ -32,6 +34,11 @@ public final class HelpCommand implements Command {
         .findByTokens(tokens)
         .map(
             registration -> {
+              if (!registration.isVisibleTo(authenticated)) {
+                err.println(
+                    "Command unavailable for current user: " + registration.canonicalName());
+                return 1;
+              }
               printDetail(registration);
               return 0;
             })
@@ -42,10 +49,10 @@ public final class HelpCommand implements Command {
             });
   }
 
-  private void printSummary() {
+  private void printSummary(boolean authenticated) {
     out.println("Available commands:");
     for (CommandRegistration registration : registry.commands()) {
-      if (registration.pathLength() == 1) {
+      if (registration.pathLength() == 1 && registration.isVisibleTo(authenticated)) {
         out.printf("  %s - %s%n", registration.canonicalName(), registration.description());
       }
     }

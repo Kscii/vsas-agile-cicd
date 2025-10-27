@@ -128,6 +128,7 @@ final class CommandRegistry {
                             "validation or permission error (login required, duplicate id, missing file)",
                         2, "usage error (missing required flags)",
                         3, "I/O error (copy failed or metadata persistence)")))
+            .access(CommandRegistration.Access.AUTHENTICATED)
             .build());
 
     builder.register(
@@ -149,6 +150,7 @@ final class CommandRegistry {
                         1, "validation or permission error (login required or scroll missing)",
                         2, "usage error (missing flags or declined confirmation)",
                         3, "I/O error (read/write failure)")))
+            .access(CommandRegistration.Access.AUTHENTICATED)
             .build());
 
     builder.register(
@@ -170,6 +172,7 @@ final class CommandRegistry {
                     Map.of(
                         0, "success (subcommand dependent)",
                         2, "usage error (missing or unknown subcommand)")))
+            .access(CommandRegistration.Access.AUTHENTICATED)
             .build());
 
     builder.register(
@@ -205,6 +208,7 @@ final class CommandRegistry {
                         1, "validation or permission error (login required or forbidden)",
                         2, "usage error (missing flags or unknown option)",
                         3, "I/O error (persistence failure)")))
+            .access(CommandRegistration.Access.AUTHENTICATED)
             .build());
 
     builder.register(
@@ -243,6 +247,7 @@ final class CommandRegistry {
                         1, "validation or permission error (login required or forbidden)",
                         2, "usage error (missing args or unknown option)",
                         3, "I/O error (file copy or persistence failure)")))
+            .access(CommandRegistration.Access.AUTHENTICATED)
             .build());
 
     builder.register(
@@ -283,11 +288,39 @@ final class CommandRegistry {
                             "validation or permission error (login required or mismatched passwords)",
                         2, "usage error (missing subcommand or flags)",
                         3, "I/O error (password prompt or repository failure)")))
+            .access(CommandRegistration.Access.AUTHENTICATED)
             .build());
 
     builder.register(
         CommandRegistration.builder("profile", "update")
-            .factory(r -> new ProfileUpdateCommand())
+            .factory(
+                r ->
+                    new Command() {
+                      private final ProfileUpdateCommand delegate = new ProfileUpdateCommand();
+
+                      @Override
+                      public int run(String[] args) {
+                        String[] withSubcommand;
+                        if (args == null || args.length == 0) {
+                          withSubcommand = new String[] {"update"};
+                        } else {
+                          withSubcommand = new String[args.length + 1];
+                          withSubcommand[0] = "update";
+                          System.arraycopy(args, 0, withSubcommand, 1, args.length);
+                        }
+                        return delegate.run(withSubcommand);
+                      }
+
+                      @Override
+                      public String name() {
+                        return "profile update";
+                      }
+
+                      @Override
+                      public String description() {
+                        return "Update profile contact details or password";
+                      }
+                    })
             .description("Update profile contact details or password")
             .help(
                 new CommandHelp(
@@ -304,6 +337,7 @@ final class CommandRegistry {
                             "validation or permission error (login required or mismatched passwords)",
                         2, "usage error (missing fields)",
                         3, "I/O error (password prompt or repository failure)")))
+            .access(CommandRegistration.Access.AUTHENTICATED)
             .build());
 
     builder.register(

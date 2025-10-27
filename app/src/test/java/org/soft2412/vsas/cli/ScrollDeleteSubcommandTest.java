@@ -62,6 +62,14 @@ class ScrollDeleteSubcommandTest {
 
   @Test
   void missingId_showsUsage_exit2() {
+    SessionService sessions = new SessionService();
+    assertTrue(
+        sessions.login(new User("guest", "", "", "ID-guest", "USER", "", "")),
+        "login should succeed");
+
+    outBuf.reset();
+    errBuf.reset();
+
     int code = new ScrollDeleteSubcommand().run(new String[] {"--yes"});
     assertEquals(2, code);
     assertTrue(errBuf.toString(StandardCharsets.UTF_8).contains("Usage"));

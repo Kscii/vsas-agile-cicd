@@ -24,18 +24,17 @@ public final class DownloadCommand implements Command {
   @Override
   public int run(String[] args) {
     Map<String, String> opts = parseOptions(args);
+    Optional<User> userOpt = sessions.currentUser();
+    if (userOpt.isEmpty()) {
+      System.err.println("Login required");
+      return 1;
+    }
     String id = opts.get("id");
     String outDirOpt = opts.get("out");
 
     if (id == null || id.isBlank()) {
       System.err.println("download: missing required option --id");
       return 2;
-    }
-
-    Optional<User> user = sessions.currentUser();
-    if (user.isEmpty()) {
-      System.err.println("Login required");
-      return 1;
     }
 
     Optional<Scroll> sOpt = scrolls.findById(id);

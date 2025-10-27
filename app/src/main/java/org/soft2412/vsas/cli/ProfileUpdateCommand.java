@@ -36,12 +36,21 @@ public final class ProfileUpdateCommand implements Command {
 
   @Override
   public int run(String[] args) {
-    if (args == null || args.length == 0) {
+    String[] safeArgs = args == null ? new String[0] : args;
+
+    Optional<String> usernameOpt = sessions.currentUser().map(u -> u.username());
+    if (usernameOpt.isEmpty() || usernameOpt.get().isBlank()) {
+      err.println("Error: permission denied (login required)");
+      return 1;
+    }
+    String username = usernameOpt.get();
+
+    if (safeArgs.length == 0) {
       printUsage();
       return 2;
     }
-    if (!"update".equals(args[0])) {
-      err.println("Error: unsupported profile subcommand: " + args[0]);
+    if (!"update".equals(safeArgs[0])) {
+      err.println("Error: unsupported profile subcommand: " + safeArgs[0]);
       printUsage();
       return 2;
     }
@@ -50,26 +59,26 @@ public final class ProfileUpdateCommand implements Command {
     String newPhone = null;
     boolean changePassword = false;
 
-    for (int i = 1; i < args.length; i++) {
-      switch (args[i]) {
+    for (int i = 1; i < safeArgs.length; i++) {
+      switch (safeArgs[i]) {
         case "--email":
-          if (i + 1 < args.length) {
-            newEmail = args[++i];
+          if (i + 1 < safeArgs.length) {
+            newEmail = safeArgs[++i];
           } else {
             err.println("Error: --email requires a value");
             return 2;
           }
           break;
         case "--phone":
-          if (i + 1 < args.length) {
-            newPhone = args[++i];
+          if (i + 1 < safeArgs.length) {
+            newPhone = safeArgs[++i];
           } else {
             err.println("Error: --phone requires a value");
             return 2;
           }
           break;
         case "--password":
-          if (i + 1 < args.length && !args[i + 1].startsWith("--")) {
+          if (i + 1 < safeArgs.length && !safeArgs[i + 1].startsWith("--")) {
             err.println("Error: --password does not take a value");
             return 2;
           }
@@ -93,13 +102,6 @@ public final class ProfileUpdateCommand implements Command {
       err.println("Error: phone cannot be blank");
       return 2;
     }
-
-    Optional<String> usernameOpt = sessions.currentUser().map(u -> u.username());
-    if (usernameOpt.isEmpty() || usernameOpt.get().isBlank()) {
-      err.println("Error: permission denied (login required)");
-      return 1;
-    }
-    String username = usernameOpt.get();
 
     char[] passwordToSet = null;
     if (changePassword) {
