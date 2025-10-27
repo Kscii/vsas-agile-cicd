@@ -1,42 +1,35 @@
 package org.soft2412.vsas.cli;
 
-import java.util.Arrays;
+import java.util.Objects;
 
 public final class CommandDispatcher {
+  private final CommandRegistry registry;
+
+  public CommandDispatcher() {
+    this(CommandRegistry.withBuiltins());
+  }
+
+  CommandDispatcher(CommandRegistry registry) {
+    this.registry = Objects.requireNonNull(registry, "registry");
+  }
+
   public int dispatch(String[] args) {
     if (args == null || args.length == 0) {
-      System.out.println("Usage: <command> [options]");
-      System.out.println(
-          "Commands: register, login, logout, whoami, list, upload, download, scroll, preview, profile");
-      // Return success for help/usage to allow `gradlew run` without args
-      return 0;
+      return registry
+          .findByCanonicalName("help")
+          .map(reg -> reg.create(registry).run(new String[0]))
+          .orElse(0);
     }
-    String cmd = args[0];
-    String[] opts = Arrays.copyOfRange(args, 1, args.length);
-    switch (cmd) {
-      case "register":
-        return new RegisterCommand().run(opts);
-      case "login":
-        return new LoginCommand().run(opts);
-      case "logout":
-        return new LogoutCommand().run(opts);
-      case "whoami":
-        return new WhoAmICommand().run(opts);
-      case "list":
-        return new ListCommand().run(opts);
-      case "upload":
-        return new UploadCommand().run(opts);
-      case "download":
-        return new DownloadCommand().run(opts);
-      case "scroll":
-        return new ScrollCommand().run(opts);
-      case "preview":
-        return new PreviewCommand().run(opts);
-      case "profile":
-        return new ProfileUpdateCommand().run(opts);
-      default:
-        System.err.println("Unknown command: " + cmd);
-        return 2;
-    }
+
+    return registry
+        .resolve(args)
+        .map(
+            resolution ->
+                resolution.registration().create(registry).run(resolution.remainingArgs()))
+        .orElseGet(
+            () -> {
+              System.err.println("Unknown command: " + String.join(" ", args));
+              return 2;
+            });
   }
 }

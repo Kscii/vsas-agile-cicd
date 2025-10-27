@@ -95,12 +95,12 @@ public final class ScrollUpdateSubcommand {
         BufferedReader br =
             new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
         String line;
-      try {
-        line = br.readLine();
-      } catch (IOException e) {
-        System.err.println("I/O error: " + e.getMessage());
-        return 3;
-      }
+        try {
+          line = br.readLine();
+        } catch (IOException e) {
+          System.err.println("I/O error: " + e.getMessage());
+          return 3;
+        }
         String ans = line == null ? "" : line.trim().toLowerCase();
         if (!(ans.equals("y") || ans.equals("yes"))) {
           System.out.println("Aborted.");
