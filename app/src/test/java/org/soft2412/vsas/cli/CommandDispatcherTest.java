@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 public class CommandDispatcherTest {
 
   @Test
-  void noArgs_printsUsage_andReturnsZero() {
+  void noArgs_printsHelpSummary_andReturnsZero() {
     PrintStream oldOut = System.out;
     PrintStream oldErr = System.err;
     ByteArrayOutputStream outBuf = new ByteArrayOutputStream();
@@ -23,8 +23,9 @@ public class CommandDispatcherTest {
 
       assertEquals(0, code);
       String out = outBuf.toString(StandardCharsets.UTF_8);
-      assertTrue(out.contains("Usage:"), "Should print usage");
-      assertTrue(out.toLowerCase().contains("register"), "List commands");
+      assertTrue(out.contains("Available commands:"), "Should show help summary");
+      assertTrue(out.toLowerCase().contains("register"), "Summary should list register");
+      assertTrue(out.toLowerCase().contains("help"), "Summary should include help command");
       assertEquals("", errBuf.toString(StandardCharsets.UTF_8), "No stderr");
     } finally {
       System.setOut(oldOut);
