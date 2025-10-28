@@ -21,6 +21,14 @@ public final class UploadCommand implements Command {
   @Override
   public int run(String[] args) {
     Map<String, String> opts = parseOptions(args);
+
+    Optional<User> userOpt = sessions.currentUser();
+    if (userOpt.isEmpty()) {
+      System.err.println("upload: login required");
+      return 1;
+    }
+    User user = userOpt.get();
+
     String id = opts.get("id");
     String name = opts.get("name");
     String file = opts.get("file");
@@ -35,21 +43,15 @@ public final class UploadCommand implements Command {
       return 2;
     }
 
-    Optional<User> user = sessions.currentUser();
-    if (user.isEmpty()) {
-      System.err.println("upload: login required");
-      return 2;
-    }
-
     Path src = Path.of(file);
     if (!Files.exists(src)) {
       System.err.println("upload: file not found");
-      return 2;
+      return 1;
     }
 
     if (scrolls.existsId(id)) {
       System.err.println("upload: id already exists");
-      return 2;
+      return 1;
     }
 
     try {
@@ -62,17 +64,17 @@ public final class UploadCommand implements Command {
       // Save metadata
       String uploadDate =
           DateTimeFormatter.ISO_INSTANT.format(Instant.now().atOffset(ZoneOffset.UTC));
-      Scroll scroll = new Scroll(id, name, user.get().idKey(), uploadDate, dest.toString(), 1L, 0L);
+      Scroll scroll = new Scroll(id, name, user.idKey(), uploadDate, dest.toString(), 1L, 0L);
       if (!scrolls.save(scroll)) {
         System.err.println("upload: failed to save metadata");
-        return 2;
+        return 3;
       }
 
       System.out.println("upload: success");
       return 0;
     } catch (Exception e) {
       System.err.println("upload: unexpected error");
-      return 2;
+      return 3;
     }
   }
 

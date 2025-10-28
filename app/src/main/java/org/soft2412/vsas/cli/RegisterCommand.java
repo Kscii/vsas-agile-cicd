@@ -110,7 +110,7 @@ public final class RegisterCommand implements Command {
         }
       } catch (IOException ioe) {
         err.println("Error: password prompt failed");
-        return 2;
+        return 3;
       }
     }
 
@@ -145,7 +145,7 @@ public final class RegisterCommand implements Command {
       boolean ok = repo.save(user);
       if (!ok) {
         err.println("Error: cannot persist user");
-        return 2;
+        return 3;
       }
 
       // Success path per acceptance criteria
@@ -153,7 +153,7 @@ public final class RegisterCommand implements Command {
       return 0;
     } catch (Exception e) {
       err.println("Error: cannot persist user");
-      return 2;
+      return 3;
     } finally {
       if (pwdChars != null) Arrays.fill(pwdChars, '\0');
     }

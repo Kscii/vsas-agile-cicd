@@ -15,34 +15,44 @@ import org.soft2412.vsas.service.SessionService;
 public final class ScrollUpdateSubcommand {
 
   public int run(String[] args) {
+    String[] safeArgs = args == null ? new String[0] : args;
+
+    SessionService session = new SessionService();
+    Optional<User> userOpt = session.currentUser();
+    if (userOpt.isEmpty()) {
+      System.err.println("Forbidden: please login first.");
+      return 1;
+    }
+    String requesterIdKey = userOpt.get().idKey();
+
     String id = null;
     String newName = null;
     String newFilePath = null;
     boolean yes = false;
 
-    for (int i = 0; i < args.length; i++) {
-      String a = args[i];
+    for (int i = 0; i < safeArgs.length; i++) {
+      String a = safeArgs[i];
       switch (a) {
         case "--id":
-          if (i + 1 >= args.length) {
+          if (i + 1 >= safeArgs.length) {
             System.err.println("Missing value for --id");
             return 2;
           }
-          id = args[++i].trim();
+          id = safeArgs[++i].trim();
           break;
         case "--name":
-          if (i + 1 >= args.length) {
+          if (i + 1 >= safeArgs.length) {
             System.err.println("Missing value for --name");
             return 2;
           }
-          newName = args[++i];
+          newName = safeArgs[++i];
           break;
         case "--file":
-          if (i + 1 >= args.length) {
+          if (i + 1 >= safeArgs.length) {
             System.err.println("Missing value for --file");
             return 2;
           }
-          newFilePath = args[++i];
+          newFilePath = safeArgs[++i];
           break;
         case "--yes":
           yes = true;
@@ -62,14 +72,6 @@ public final class ScrollUpdateSubcommand {
       System.err.println("Nothing to update. Provide --name and/or --file");
       return 2;
     }
-
-    SessionService session = new SessionService();
-    Optional<User> u = session.currentUser();
-    if (u.isEmpty()) {
-      System.err.println("Forbidden: please login first.");
-      return 1;
-    }
-    String requesterIdKey = u.get().idKey();
 
     ScrollRepository repo = new FileScrollRepository();
     Optional<Scroll> os = repo.findById(id);
@@ -99,7 +101,7 @@ public final class ScrollUpdateSubcommand {
           line = br.readLine();
         } catch (IOException e) {
           System.err.println("I/O error: " + e.getMessage());
-          return 1;
+          return 3;
         }
         String ans = line == null ? "" : line.trim().toLowerCase();
         if (!(ans.equals("y") || ans.equals("yes"))) {
@@ -119,7 +121,7 @@ public final class ScrollUpdateSubcommand {
           Files.deleteIfExists(tmp);
         } catch (IOException ignore) {
         }
-        return 1;
+        return 3;
       }
     }
 
@@ -137,7 +139,7 @@ public final class ScrollUpdateSubcommand {
     boolean ok = repo.update(updated);
     if (!ok) {
       System.err.println("Update failed (persistence).");
-      return 1;
+      return 3;
     }
 
     System.out.println("Updated: " + id);

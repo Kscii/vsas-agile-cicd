@@ -14,18 +14,28 @@ import org.soft2412.vsas.service.SessionService;
 public final class ScrollDeleteSubcommand {
 
   public int run(String[] args) {
+    String[] safeArgs = args == null ? new String[0] : args;
+
+    SessionService session = new SessionService();
+    Optional<User> currentUser = session.currentUser();
+    if (currentUser.isEmpty()) {
+      System.err.println("Forbidden: please login first.");
+      return 1;
+    }
+    String requesterIdKey = currentUser.get().idKey();
+
     String id = null;
     boolean yes = false;
 
-    for (int i = 0; i < args.length; i++) {
-      String a = args[i];
+    for (int i = 0; i < safeArgs.length; i++) {
+      String a = safeArgs[i];
       switch (a) {
         case "--id":
-          if (i + 1 >= args.length) {
+          if (i + 1 >= safeArgs.length) {
             System.err.println("Missing value for --id");
             return 2;
           }
-          id = args[++i].trim();
+          id = safeArgs[++i].trim();
           break;
         case "--yes":
           yes = true;
@@ -40,14 +50,6 @@ public final class ScrollDeleteSubcommand {
       System.err.println("Usage: scroll delete --id <sid> [--yes]");
       return 2;
     }
-
-    SessionService session = new SessionService();
-    Optional<User> u = session.currentUser();
-    if (u.isEmpty()) {
-      System.err.println("Forbidden: please login first.");
-      return 1;
-    }
-    String requesterIdKey = u.get().idKey();
 
     ScrollRepository repo = new FileScrollRepository();
     Optional<Scroll> os = repo.findById(id);
@@ -71,7 +73,7 @@ public final class ScrollDeleteSubcommand {
         line = br.readLine();
       } catch (IOException e) {
         System.err.println("I/O error: " + e.getMessage());
-        return 1;
+        return 3;
       }
       String ans = line == null ? "" : line.trim().toLowerCase();
       if (!(ans.equals("y") || ans.equals("yes"))) {
@@ -83,7 +85,7 @@ public final class ScrollDeleteSubcommand {
     boolean ok = repo.deleteById(id);
     if (!ok) {
       System.err.println("Delete failed (persistence).");
-      return 1;
+      return 3;
     }
 
     System.out.println("Deleted: " + id);

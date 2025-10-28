@@ -30,6 +30,9 @@ class AppInteractiveTest {
         new String[] {"upload", "--id", "s1", "--name", "My Scroll", "--file", "path"},
         invoker.calls.get(0));
     String prompts = outBuffer.toString(StandardCharsets.UTF_8);
+    assertTrue(
+        prompts.startsWith("Welcome to VSAS CLI."),
+        "Should print welcome banner once before prompts");
     assertEquals(2, countOccurrences(prompts, "vsas> "));
     assertEquals("", errBuffer.toString(StandardCharsets.UTF_8));
   }
@@ -50,6 +53,8 @@ class AppInteractiveTest {
 
     assertEquals(2, exitCode);
     assertTrue(invoker.calls.isEmpty());
+    String outText = outBuffer.toString(StandardCharsets.UTF_8);
+    assertTrue(outText.contains("Welcome to VSAS CLI."));
     String errOutput = errBuffer.toString(StandardCharsets.UTF_8);
     assertTrue(errOutput.contains("Invalid input: unmatched quotes."));
   }

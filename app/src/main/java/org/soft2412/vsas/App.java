@@ -39,6 +39,8 @@ public final class App {
     BufferedReader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
     int lastExitCode = 0;
 
+    out.println("Welcome to VSAS CLI. Type 'help' or 'help <command>' for assistance.");
+
     while (true) {
       out.print("vsas> ");
       out.flush();
