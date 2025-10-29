@@ -121,7 +121,7 @@ public final class FileBookmarkRepository implements BookmarkRepository {
       return false;
     }
     try (BufferedReader reader = Files.newBufferedReader(dataFile, StandardCharsets.UTF_8)) {
-      String header = reader.readLine();
+      reader.readLine(); // skip header
       String line;
       while ((line = reader.readLine()) != null) {
         if (line.isBlank()) {
@@ -150,7 +150,7 @@ public final class FileBookmarkRepository implements BookmarkRepository {
     }
     List<Bookmark> result = new ArrayList<>();
     try (BufferedReader reader = Files.newBufferedReader(dataFile, StandardCharsets.UTF_8)) {
-      String header = reader.readLine();
+      reader.readLine(); // skip header
       String line;
       while ((line = reader.readLine()) != null) {
         if (line.isBlank()) {
