@@ -11,11 +11,17 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
 import org.soft2412.vsas.model.Scroll;
+import org.soft2412.vsas.model.User;
+import org.soft2412.vsas.repo.BookmarkRepository;
+import org.soft2412.vsas.repo.FileBookmarkRepository;
 import org.soft2412.vsas.repo.FileScrollRepository;
 import org.soft2412.vsas.repo.ScrollRepository;
+import org.soft2412.vsas.service.SessionService;
 
 public final class PreviewCommand implements Command {
   private final ScrollRepository scrolls = new FileScrollRepository();
+  private final SessionService sessions = new SessionService();
+  private final BookmarkRepository bookmarks = new FileBookmarkRepository();
 
   @Override
   public int run(String[] args) {
@@ -39,7 +45,8 @@ public final class PreviewCommand implements Command {
 
       Scroll s = sOpt.get();
       System.out.println("id: " + s.id());
-      System.out.println("name: " + s.name());
+      boolean bookmarked = isBookmarked(s.id());
+      System.out.println("name: " + formatName(s.name(), bookmarked));
       System.out.println("uploader: " + s.uploaderIdKey());
       System.out.println("uploadDate: " + s.uploadDate());
 
@@ -123,6 +130,35 @@ public final class PreviewCommand implements Command {
     } catch (CharacterCodingException e) {
       return false;
     }
+  }
+
+  private boolean isBookmarked(String scrollId) {
+    if (scrollId == null || scrollId.isBlank()) {
+      return false;
+    }
+    Optional<User> current = sessions.currentUser();
+    if (current.isEmpty()) {
+      return false;
+    }
+    String idKey = current.get().idKey();
+    if (idKey == null || idKey.isBlank()) {
+      return false;
+    }
+    return bookmarks.exists(idKey, scrollId);
+  }
+
+  private String formatName(String name, boolean bookmarked) {
+    if (!bookmarked) {
+      return name == null ? "" : name;
+    }
+    String marker = "[BK]";
+    if (name == null || name.isBlank()) {
+      return marker;
+    }
+    if (name.endsWith(marker)) {
+      return name;
+    }
+    return name + " " + marker;
   }
 
   // Returns the length of the largest prefix that:
