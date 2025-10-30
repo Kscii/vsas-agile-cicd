@@ -4,7 +4,9 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Locale;
@@ -15,6 +17,9 @@ import org.soft2412.vsas.model.User;
 import org.soft2412.vsas.security.PasswordHasher;
 
 public final class FileUserRepository implements UserRepository {
+
+  private static final String USERS_PATH_PROPERTY = "vsas.users.path";
+  private static final String DATA_DIR_PROPERTY = "vsas.data.dir";
 
   private static final String[] HEADER =
       new String[] {
@@ -97,11 +102,7 @@ public final class FileUserRepository implements UserRepository {
               + "\n";
 
       Files.writeString(
-          usersPath,
-          row,
-          StandardCharsets.UTF_8,
-          StandardOpenOption.APPEND,
-          StandardOpenOption.CREATE);
+          usersPath, row, StandardCharsets.UTF_8, java.nio.file.StandardOpenOption.APPEND);
       return true;
     } catch (IOException e) {
       return false;
@@ -114,7 +115,7 @@ public final class FileUserRepository implements UserRepository {
     if (isBlank(username)) return false;
     Path temp = null;
     boolean updated = false;
-    PasswordHasher hasher = new PasswordHasher();
+    PasswordHasher hasher = newPassword != null ? new PasswordHasher() : null;
     try {
       if (!Files.exists(usersPath)) {
         return false;
@@ -407,7 +408,8 @@ public final class FileUserRepository implements UserRepository {
 
     if (!Files.exists(usersPath)) {
       String header = String.join("\t", HEADER) + "\n";
-      Files.writeString(usersPath, header, StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW);
+      Files.writeString(
+          usersPath, header, StandardCharsets.UTF_8, java.nio.file.StandardOpenOption.CREATE_NEW);
     }
   }
 
@@ -435,27 +437,18 @@ public final class FileUserRepository implements UserRepository {
   }
 
   private static Path resolveDefaultUsersPath() {
-    String explicit = trimToNull(System.getProperty("vsas.users.path"));
-    if (explicit != null) {
-      return Path.of(explicit);
+    String explicit = System.getProperty(USERS_PATH_PROPERTY);
+    if (explicit != null && !explicit.isBlank()) {
+      return Path.of(explicit).normalize();
     }
-    String dataDir = trimToNull(System.getProperty("vsas.data.dir"));
-    if (dataDir != null) {
-      return Path.of(dataDir).resolve("users.tsv");
-    }
-    Path cwd = Paths.get("").toAbsolutePath().normalize();
-    if (cwd.getFileName() != null && "app".equals(cwd.getFileName().toString())) {
-      Path parent = cwd.getParent();
-      if (parent != null) {
-        return parent.resolve("data").resolve("users.tsv");
+    String dataDir = System.getProperty(DATA_DIR_PROPERTY);
+    if (dataDir != null && !dataDir.isBlank()) {
+      Path p = Path.of(dataDir).normalize();
+      if (p.getFileName() != null && p.getFileName().toString().equalsIgnoreCase("users.tsv")) {
+        return p;
       }
+      return p.resolve("users.tsv").normalize();
     }
-    return Path.of("data").resolve("users.tsv");
-  }
-
-  private static String trimToNull(String v) {
-    if (v == null) return null;
-    String t = v.trim();
-    return t.isEmpty() ? null : t;
+    return Path.of("data", "users.tsv").normalize();
   }
 }
