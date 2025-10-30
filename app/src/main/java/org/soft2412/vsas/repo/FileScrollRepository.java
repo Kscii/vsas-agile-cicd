@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.soft2412.vsas.model.Scroll;
+import org.soft2412.vsas.model.ScrollUsage;
 
 public final class FileScrollRepository implements ScrollRepository {
   private final Path dataFile = Path.of("data", "scrolls.tsv");
@@ -257,5 +258,30 @@ public final class FileScrollRepository implements ScrollRepository {
     } catch (java.io.IOException e) {
       return false;
     }
+  }
+
+
+  public java.util.Map<String, ScrollUsage> aggregateByUploader() {
+    java.util.Map<String, ScrollUsage> map = new java.util.LinkedHashMap<>();
+    for (Scroll s : findAll()) {
+      String key = s.uploaderIdKey();
+      if (key == null || key.isBlank()) {
+        key = "(unknown)";
+      }
+      ScrollUsage current = map.get(key);
+      long up = s.uploadCount();
+      long down = s.downloadCount();
+      if (current == null) {
+        map.put(key, new ScrollUsage(key, up, down));
+      } else {
+        map.put(
+            key,
+            new ScrollUsage(
+                key,
+                current.getUploads() + up,
+                current.getDownloads() + down));
+      }
+    }
+    return map;
   }
 }

@@ -84,13 +84,17 @@ public final class DownloadCommand implements Command {
         try {
           Files.copy(source, dest);
         } catch (FileAlreadyExistsException ignore) {
-          // Should not happen due to exists check, but guard anyway
           System.err.println("Error: destination exists");
           return 3;
         } catch (IOException ioe) {
           System.err.println("Error: cannot write destination");
           return 3;
         }
+      }
+
+      boolean ok = scrolls.incrementDownloadCount(id);
+      if (!ok) {
+        System.err.println("Warning: failed to update download count for scroll " + id);
       }
 
       System.out.println(dest.toAbsolutePath().normalize().toString());
