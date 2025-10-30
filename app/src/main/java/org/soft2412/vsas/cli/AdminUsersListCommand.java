@@ -281,8 +281,8 @@ public final class AdminUsersListCommand implements Command {
 
     private static Path resolveUsersPath() {
         Path[] candidates = new Path[] {
-                Path.of("data", "users.tsv"),
                 Path.of("..", "data", "users.tsv"),
+                Path.of("data", "users.tsv"),
                 Path.of("..", "..", "data", "users.tsv")
         };
         for (Path p : candidates) {
