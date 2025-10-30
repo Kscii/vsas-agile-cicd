@@ -394,6 +394,26 @@ final class CommandRegistry {
             .build());
 
     builder.register(
+        CommandRegistration.builder("admin", "stats")
+            .factory(r -> new AdminStatsCommand())
+            .description("Show scroll usage statistics (per scroll or grouped by uploader)")
+            .help(
+                new CommandHelp(
+                    "admin stats [--by uploader]",
+                    List.of(),
+                    List.of(
+                        new CommandHelp.Flag(
+                            "--by uploader", "Group results by uploaderIdKey and sum counts")),
+                    // example
+                    "admin stats --by uploader",
+                    Map.of(
+                        0, "success",
+                        1, "permission error (admin only)",
+                        2, "usage error")))
+            .access(CommandRegistration.Access.AUTHENTICATED)
+            .build());
+
+    builder.register(
         CommandRegistration.builder("admin", "users", "list")
             .factory(r -> new AdminUsersListCommand())
             .description("List users (admin only)")
