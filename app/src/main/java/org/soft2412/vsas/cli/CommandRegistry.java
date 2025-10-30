@@ -123,11 +123,14 @@ final class CommandRegistry {
                     List.of(),
                     "upload --id S-001 --name \"Quarterly Report\" --file ./report.pdf",
                     Map.of(
-                        0, "success",
+                        0,
+                        "success",
                         1,
                         "validation or permission error (login required, duplicate id, missing file)",
-                        2, "usage error (missing required flags)",
-                        3, "I/O error (copy failed or metadata persistence)")))
+                        2,
+                        "usage error (missing required flags)",
+                        3,
+                        "I/O error (copy failed or metadata persistence)")))
             .access(CommandRegistration.Access.AUTHENTICATED)
             .build());
 
@@ -156,30 +159,31 @@ final class CommandRegistry {
     builder.register(
         CommandRegistration.builder("bookmark")
             .factory(
-                r -> new Command() {
-                  @Override
-                  public int run(String[] args) {
-                    if (args != null && args.length > 0) {
-                      System.err.println(
-                          "Unknown bookmark subcommand: " + String.join(" ", args));
-                    }
-                    System.out.println("Usage:");
-                    System.out.println("  bookmark add --id <sid>");
-                    System.out.println("  bookmark list");
-                    System.out.println("  bookmark remove --id <sid> [--yes]");
-                    return 2;
-                  }
+                r ->
+                    new Command() {
+                      @Override
+                      public int run(String[] args) {
+                        if (args != null && args.length > 0) {
+                          System.err.println(
+                              "Unknown bookmark subcommand: " + String.join(" ", args));
+                        }
+                        System.out.println("Usage:");
+                        System.out.println("  bookmark add --id <sid>");
+                        System.out.println("  bookmark list");
+                        System.out.println("  bookmark remove --id <sid> [--yes]");
+                        return 2;
+                      }
 
-                  @Override
-                  public String name() {
-                    return "bookmark";
-                  }
+                      @Override
+                      public String name() {
+                        return "bookmark";
+                      }
 
-                  @Override
-                  public String description() {
-                    return "Manage personal scroll bookmarks";
-                  }
-                })
+                      @Override
+                      public String description() {
+                        return "Manage personal scroll bookmarks";
+                      }
+                    })
             .description("Manage personal scroll bookmarks")
             .help(
                 new CommandHelp(
@@ -268,22 +272,23 @@ final class CommandRegistry {
     builder.register(
         CommandRegistration.builder("scroll", "delete")
             .factory(
-                r -> new Command() {
-                  @Override
-                  public int run(String[] args) {
-                    return new ScrollDeleteSubcommand().run(args);
-                  }
+                r ->
+                    new Command() {
+                      @Override
+                      public int run(String[] args) {
+                        return new ScrollDeleteSubcommand().run(args);
+                      }
 
-                  @Override
-                  public String name() {
-                    return "scroll delete";
-                  }
+                      @Override
+                      public String name() {
+                        return "scroll delete";
+                      }
 
-                  @Override
-                  public String description() {
-                    return "Delete a scroll you uploaded";
-                  }
-                })
+                      @Override
+                      public String description() {
+                        return "Delete a scroll you uploaded";
+                      }
+                    })
             .description("Delete a scroll you uploaded")
             .help(
                 new CommandHelp(
@@ -303,22 +308,23 @@ final class CommandRegistry {
     builder.register(
         CommandRegistration.builder("scroll", "update")
             .factory(
-                r -> new Command() {
-                  @Override
-                  public int run(String[] args) {
-                    return new ScrollUpdateSubcommand().run(args);
-                  }
+                r ->
+                    new Command() {
+                      @Override
+                      public int run(String[] args) {
+                        return new ScrollUpdateSubcommand().run(args);
+                      }
 
-                  @Override
-                  public String name() {
-                    return "scroll update";
-                  }
+                      @Override
+                      public String name() {
+                        return "scroll update";
+                      }
 
-                  @Override
-                  public String description() {
-                    return "Update scroll metadata or file";
-                  }
-                })
+                      @Override
+                      public String description() {
+                        return "Update scroll metadata or file";
+                      }
+                    })
             .description("Update scroll metadata or file")
             .help(
                 new CommandHelp(
@@ -353,11 +359,14 @@ final class CommandRegistry {
                             "--yes", "Skip confirmation only when --username is provided")),
                     "admin users delete --username alice --yes",
                     Map.of(
-                        0, "success",
+                        0,
+                        "success",
                         1,
                         "permission or validation error (requires admin, target missing, owns scrolls, or self-delete)",
-                        2, "usage error (missing flags or unknown option)",
-                        3, "I/O error (prompt or persistence failure)")))
+                        2,
+                        "usage error (missing flags or unknown option)",
+                        3,
+                        "I/O error (prompt or persistence failure)")))
             .access(CommandRegistration.Access.AUTHENTICATED)
             .build());
 
@@ -438,43 +447,47 @@ final class CommandRegistry {
                         new CommandHelp.Flag("--password", "Prompt for a new password")),
                     "profile update --email new@example.com --phone 0400000000",
                     Map.of(
-                        0, "success",
+                        0,
+                        "success",
                         1,
                         "validation or permission error (login required or mismatched passwords)",
-                        2, "usage error (missing subcommand or flags)",
-                        3, "I/O error (password prompt or repository failure)")))
+                        2,
+                        "usage error (missing subcommand or flags)",
+                        3,
+                        "I/O error (password prompt or repository failure)")))
             .access(CommandRegistration.Access.AUTHENTICATED)
             .build());
 
     builder.register(
         CommandRegistration.builder("profile", "update")
             .factory(
-                r -> new Command() {
-                  private final ProfileUpdateCommand delegate = new ProfileUpdateCommand();
+                r ->
+                    new Command() {
+                      private final ProfileUpdateCommand delegate = new ProfileUpdateCommand();
 
-                  @Override
-                  public int run(String[] args) {
-                    String[] withSubcommand;
-                    if (args == null || args.length == 0) {
-                      withSubcommand = new String[] { "update" };
-                    } else {
-                      withSubcommand = new String[args.length + 1];
-                      withSubcommand[0] = "update";
-                      System.arraycopy(args, 0, withSubcommand, 1, args.length);
-                    }
-                    return delegate.run(withSubcommand);
-                  }
+                      @Override
+                      public int run(String[] args) {
+                        String[] withSubcommand;
+                        if (args == null || args.length == 0) {
+                          withSubcommand = new String[] {"update"};
+                        } else {
+                          withSubcommand = new String[args.length + 1];
+                          withSubcommand[0] = "update";
+                          System.arraycopy(args, 0, withSubcommand, 1, args.length);
+                        }
+                        return delegate.run(withSubcommand);
+                      }
 
-                  @Override
-                  public String name() {
-                    return "profile update";
-                  }
+                      @Override
+                      public String name() {
+                        return "profile update";
+                      }
 
-                  @Override
-                  public String description() {
-                    return "Update profile contact details or password";
-                  }
-                })
+                      @Override
+                      public String description() {
+                        return "Update profile contact details or password";
+                      }
+                    })
             .description("Update profile contact details or password")
             .help(
                 new CommandHelp(
@@ -486,11 +499,14 @@ final class CommandRegistry {
                         new CommandHelp.Flag("--password", "Prompt for a new password")),
                     "profile update --password",
                     Map.of(
-                        0, "success",
+                        0,
+                        "success",
                         1,
                         "validation or permission error (login required or mismatched passwords)",
-                        2, "usage error (missing fields)",
-                        3, "I/O error (password prompt or repository failure)")))
+                        2,
+                        "usage error (missing fields)",
+                        3,
+                        "I/O error (password prompt or repository failure)")))
             .access(CommandRegistration.Access.AUTHENTICATED)
             .build());
 
