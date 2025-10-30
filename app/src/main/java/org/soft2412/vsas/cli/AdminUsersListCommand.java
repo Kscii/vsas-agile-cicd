@@ -27,9 +27,9 @@ import org.soft2412.vsas.service.SessionService;
  * 2 -> usage error (unknown flag or missing value)
  * 3 -> I/O error (failed to read users.tsv)
  */
+
 public final class AdminUsersListCommand implements Command {
 
-    // Fixed column widths for stable scripting output
     private static final int W_USERNAME = 16;
     private static final int W_EMAIL = 28;
     private static final int W_PHONE = 14;
@@ -58,10 +58,9 @@ public final class AdminUsersListCommand implements Command {
 
     @Override
     public int run(String[] args) {
-        // ---- parse flags ----
         String usernameFilter = null;
         String idKeyFilter = null;
-        String roleFilter = null; // normalized to ADMIN/USER after validation
+        String roleFilter = null;
 
         String[] safe = args == null ? new String[0] : args;
         for (int i = 0; i < safe.length; i++) {
@@ -90,9 +89,9 @@ public final class AdminUsersListCommand implements Command {
                     String norm = normalizeRole(v);
                     if (norm == null) {
                         err.println("Invalid role: " + nullToEmpty(v));
-                        return 1; // validation
+                        return 1;
                     }
-                    roleFilter = norm; // ADMIN or USER
+                    roleFilter = norm;
                     break;
                 default:
                     err.println("Unknown option: " + a);
@@ -100,7 +99,6 @@ public final class AdminUsersListCommand implements Command {
             }
         }
 
-        // ---- permission ----
         Optional<User> currentOpt = sessions.currentUser();
         if (currentOpt.isEmpty()) {
             err.println("Forbidden: admin login required.");
@@ -112,8 +110,7 @@ public final class AdminUsersListCommand implements Command {
             return 1;
         }
 
-        // ---- read users.tsv ----
-        Path usersPath = Path.of("data", "users.tsv");
+        Path usersPath = resolveUsersPath();
         List<Row> rows;
         try {
             rows = readAll(usersPath);
@@ -122,7 +119,6 @@ public final class AdminUsersListCommand implements Command {
             return 3;
         }
 
-        // ---- filter (AND semantics) ----
         List<Row> filtered = new ArrayList<>(rows.size());
         for (Row r : rows) {
             if (usernameFilter != null && !usernameFilter.equals(r.username))
@@ -134,7 +130,6 @@ public final class AdminUsersListCommand implements Command {
             filtered.add(r);
         }
 
-        // ---- print header (always) ----
         out.println(formatHeader());
         for (Row r : filtered) {
             out.println(formatRow(r));
@@ -153,13 +148,10 @@ public final class AdminUsersListCommand implements Command {
         return "List users (admin only)";
     }
 
-    // ===== helper methods =====
-
     private static boolean isAdmin(String role) {
         return "ADMIN".equalsIgnoreCase(nullToEmpty(role));
     }
 
-    /** normalize human input to ADMIN/USER; return null if invalid */
     private static String normalizeRole(String v) {
         if (v == null)
             return null;
@@ -183,8 +175,6 @@ public final class AdminUsersListCommand implements Command {
     }
 
     private static String formatRow(Row r) {
-        // Display role in lower-case as per CLI convention, keep createdAt as ISO
-        // string
         String roleDisplay = "ADMIN".equalsIgnoreCase(r.role) ? "admin"
                 : ("USER".equalsIgnoreCase(r.role) ? "user" : r.role);
 
@@ -205,16 +195,15 @@ public final class AdminUsersListCommand implements Command {
         return v.substring(0, w);
     }
 
-    // TSV reading aligned with FileUserRepository schema
     private static List<Row> readAll(Path usersPath) throws IOException {
         List<Row> list = new ArrayList<>();
         if (!Files.exists(usersPath)) {
-            return list; // empty, not an error
+            return list;
         }
         try (BufferedReader br = Files.newBufferedReader(usersPath, StandardCharsets.UTF_8)) {
             String header = br.readLine();
             if (header == null) {
-                return list; // empty file, treat as no users
+                return list;
             }
             String[] cols = header.split("\t", -1);
             int iUser = indexOf(cols, "username");
@@ -225,7 +214,6 @@ public final class AdminUsersListCommand implements Command {
             int iCreated = indexOf(cols, "createdAt");
 
             if (iUser < 0 || iEmail < 0 || iPhone < 0 || iIdKey < 0 || iRole < 0 || iCreated < 0) {
-                // corrupted/mismatched header -> treat as I/O semantics for simplicity
                 throw new IOException("users.tsv header invalid");
             }
 
@@ -241,13 +229,12 @@ public final class AdminUsersListCommand implements Command {
                 String role = field(p, iRole);
                 String created = field(p, iCreated);
 
-                // Basic createdAt sanity: keep original string, fallback to now if unparsable
                 String createdOut = created;
                 try {
                     if (created == null || created.isBlank()) {
                         createdOut = Instant.now().toString();
                     } else {
-                        Instant.parse(created); // validate
+                        Instant.parse(created);
                     }
                 } catch (Exception ignore) {
                     createdOut = Instant.now().toString();
@@ -274,7 +261,6 @@ public final class AdminUsersListCommand implements Command {
         return v == null ? "" : v;
     }
 
-    // lightweight row struct for rendering
     private static final class Row {
         final String username;
         final String email;
@@ -291,5 +277,22 @@ public final class AdminUsersListCommand implements Command {
             this.role = role;
             this.createdAt = createdAt;
         }
+    }
+
+    private static Path resolveUsersPath() {
+        Path[] candidates = new Path[] {
+                Path.of("data", "users.tsv"),
+                Path.of("..", "data", "users.tsv"),
+                Path.of("..", "..", "data", "users.tsv")
+        };
+        for (Path p : candidates) {
+            try {
+                if (Files.exists(p)) {
+                    return p.toAbsolutePath().normalize();
+                }
+            } catch (Exception ignore) {
+            }
+        }
+        return Path.of("data", "users.tsv").toAbsolutePath().normalize();
     }
 }
