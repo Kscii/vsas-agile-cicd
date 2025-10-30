@@ -16,9 +16,10 @@ import org.soft2412.vsas.security.PasswordHasher;
 
 public final class FileUserRepository implements UserRepository {
 
-  private static final String[] HEADER = new String[] {
-      "username", "email", "phone", "idKey", "role", "passwordHash", "salt", "createdAt"
-  };
+  private static final String[] HEADER =
+      new String[] {
+        "username", "email", "phone", "idKey", "role", "passwordHash", "salt", "createdAt"
+      };
   private static final Pattern TAB_OR_NEWLINE = Pattern.compile("[\\t\\r\\n]");
 
   private static final Path DEFAULT_PATH = resolveDefaultUsersPath();
@@ -35,8 +36,7 @@ public final class FileUserRepository implements UserRepository {
 
   @Override
   public Optional<User> findByUsername(String username) {
-    if (isBlank(username))
-      return Optional.empty();
+    if (isBlank(username)) return Optional.empty();
     try {
       return scanFirstMatch("username", username);
     } catch (IOException e) {
@@ -46,8 +46,7 @@ public final class FileUserRepository implements UserRepository {
 
   @Override
   public Optional<User> findByIdKey(String idKey) {
-    if (isBlank(idKey))
-      return Optional.empty();
+    if (isBlank(idKey)) return Optional.empty();
     try {
       return scanFirstMatch("idKey", idKey);
     } catch (IOException e) {
@@ -57,25 +56,19 @@ public final class FileUserRepository implements UserRepository {
 
   @Override
   public boolean existsIdKey(String idKey) {
-    if (isBlank(idKey))
-      return false;
+    if (isBlank(idKey)) return false;
     try {
-      if (!Files.exists(usersPath))
-        return false;
+      if (!Files.exists(usersPath)) return false;
       try (BufferedReader br = Files.newBufferedReader(usersPath, StandardCharsets.UTF_8)) {
         String header = br.readLine();
-        if (header == null)
-          return false;
+        if (header == null) return false;
         int idxIdKey = indexOfCol(header.split("\t", -1), "idKey");
-        if (idxIdKey < 0)
-          return false;
+        if (idxIdKey < 0) return false;
         String line;
         while ((line = br.readLine()) != null) {
           String[] parts = line.split("\t", -1);
-          if (parts.length <= idxIdKey)
-            continue;
-          if (idKey.equals(parts[idxIdKey]))
-            return true;
+          if (parts.length <= idxIdKey) continue;
+          if (idKey.equals(parts[idxIdKey])) return true;
         }
         return false;
       }
@@ -86,25 +79,29 @@ public final class FileUserRepository implements UserRepository {
 
   @Override
   public boolean save(User user) {
-    if (user == null)
-      return false;
+    if (user == null) return false;
     try {
       ensureHeader(usersPath);
 
-      String row = String.join(
-          "\t",
-          sanitize(user.username()),
-          sanitize(user.email()),
-          sanitize(user.phone()),
-          sanitize(user.idKey()),
-          sanitize(defaultRole(user.role())),
-          nvl(user.passwordHash()),
-          nvl(user.salt()),
-          (user.createdAt() == null ? Instant.now() : user.createdAt()).toString())
-          + "\n";
+      String row =
+          String.join(
+                  "\t",
+                  sanitize(user.username()),
+                  sanitize(user.email()),
+                  sanitize(user.phone()),
+                  sanitize(user.idKey()),
+                  sanitize(defaultRole(user.role())),
+                  nvl(user.passwordHash()),
+                  nvl(user.salt()),
+                  (user.createdAt() == null ? Instant.now() : user.createdAt()).toString())
+              + "\n";
 
       Files.writeString(
-          usersPath, row, StandardCharsets.UTF_8, StandardOpenOption.APPEND, StandardOpenOption.CREATE);
+          usersPath,
+          row,
+          StandardCharsets.UTF_8,
+          StandardOpenOption.APPEND,
+          StandardOpenOption.CREATE);
       return true;
     } catch (IOException e) {
       return false;
@@ -114,8 +111,7 @@ public final class FileUserRepository implements UserRepository {
   @Override
   public boolean updateProfile(
       String username, String newEmail, String newPhone, char[] newPassword) {
-    if (isBlank(username))
-      return false;
+    if (isBlank(username)) return false;
     Path temp = null;
     boolean updated = false;
     PasswordHasher hasher = new PasswordHasher();
@@ -147,7 +143,8 @@ public final class FileUserRepository implements UserRepository {
           String line;
           while ((line = br.readLine()) != null) {
             String[] rawParts = line.split("\t", -1);
-            String[] parts = rawParts.length < cols.length ? Arrays.copyOf(rawParts, cols.length) : rawParts;
+            String[] parts =
+                rawParts.length < cols.length ? Arrays.copyOf(rawParts, cols.length) : rawParts;
 
             if (username.equals(parts[iUser])) {
               if (newEmail != null) {
@@ -167,8 +164,7 @@ public final class FileUserRepository implements UserRepository {
 
             StringBuilder sb = new StringBuilder();
             for (int i = 0; i < cols.length; i++) {
-              if (i > 0)
-                sb.append('\t');
+              if (i > 0) sb.append('\t');
               String value = i < parts.length ? parts[i] : "";
               sb.append(value == null ? "" : value);
             }
@@ -237,7 +233,8 @@ public final class FileUserRepository implements UserRepository {
           String line;
           while ((line = br.readLine()) != null) {
             String[] rawParts = line.split("\t", -1);
-            String[] parts = rawParts.length < cols.length ? Arrays.copyOf(rawParts, cols.length) : rawParts;
+            String[] parts =
+                rawParts.length < cols.length ? Arrays.copyOf(rawParts, cols.length) : rawParts;
 
             if (username.equals(parts[iUser])) {
               String existingRole = parts[iRole] == null ? "" : parts[iRole];
@@ -249,8 +246,7 @@ public final class FileUserRepository implements UserRepository {
 
             StringBuilder sb = new StringBuilder();
             for (int i = 0; i < cols.length; i++) {
-              if (i > 0)
-                sb.append('\t');
+              if (i > 0) sb.append('\t');
               String value = i < parts.length ? parts[i] : "";
               sb.append(value == null ? "" : value);
             }
@@ -356,13 +352,11 @@ public final class FileUserRepository implements UserRepository {
   }
 
   private Optional<User> scanFirstMatch(String colName, String value) throws IOException {
-    if (!Files.exists(usersPath))
-      return Optional.empty();
+    if (!Files.exists(usersPath)) return Optional.empty();
 
     try (BufferedReader br = Files.newBufferedReader(usersPath, StandardCharsets.UTF_8)) {
       String header = br.readLine();
-      if (header == null)
-        return Optional.empty();
+      if (header == null) return Optional.empty();
 
       String[] cols = header.split("\t", -1);
       int iUser = indexOfCol(cols, "username");
@@ -390,8 +384,7 @@ public final class FileUserRepository implements UserRepository {
       String line;
       while ((line = br.readLine()) != null) {
         String[] p = line.split("\t", -1);
-        if (p.length < cols.length)
-          continue;
+        if (p.length < cols.length) continue;
         if (value.equals(p[iTarget])) {
           Instant ts;
           try {
@@ -399,7 +392,8 @@ public final class FileUserRepository implements UserRepository {
           } catch (Exception e) {
             ts = Instant.now();
           }
-          User u = new User(p[iUser], p[iEmail], p[iPhone], p[iIdKey], p[iRole], p[iHash], p[iSalt], ts);
+          User u =
+              new User(p[iUser], p[iEmail], p[iPhone], p[iIdKey], p[iRole], p[iHash], p[iSalt], ts);
           return Optional.of(u);
         }
       }
@@ -409,8 +403,7 @@ public final class FileUserRepository implements UserRepository {
 
   private static void ensureHeader(Path usersPath) throws IOException {
     Path dir = usersPath.getParent();
-    if (dir != null && !Files.exists(dir))
-      Files.createDirectories(dir);
+    if (dir != null && !Files.exists(dir)) Files.createDirectories(dir);
 
     if (!Files.exists(usersPath)) {
       String header = String.join("\t", HEADER) + "\n";
@@ -432,8 +425,7 @@ public final class FileUserRepository implements UserRepository {
 
   private static int indexOfCol(String[] headerCols, String target) {
     for (int i = 0; i < headerCols.length; i++) {
-      if (target.equals(headerCols[i]))
-        return i;
+      if (target.equals(headerCols[i])) return i;
     }
     return -1;
   }
@@ -462,8 +454,7 @@ public final class FileUserRepository implements UserRepository {
   }
 
   private static String trimToNull(String v) {
-    if (v == null)
-      return null;
+    if (v == null) return null;
     String t = v.trim();
     return t.isEmpty() ? null : t;
   }

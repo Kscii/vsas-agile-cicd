@@ -20,7 +20,12 @@ public final class LoginCommand implements Command {
   private final UserRepository users;
 
   public LoginCommand() {
-    this(System.out, System.err, new PasswordHasher(), new SessionService(), new FileUserRepository());
+    this(
+        System.out,
+        System.err,
+        new PasswordHasher(),
+        new SessionService(),
+        new FileUserRepository());
   }
 
   LoginCommand(PrintStream out, PrintStream err, PasswordHasher hasher) {
@@ -50,12 +55,10 @@ public final class LoginCommand implements Command {
         String a = args[i];
         switch (a) {
           case "--username":
-            if (i + 1 < args.length)
-              username = args[++i];
+            if (i + 1 < args.length) username = args[++i];
             break;
           case "--password":
-            if (i + 1 < args.length)
-              password = args[++i];
+            if (i + 1 < args.length) password = args[++i];
             break;
           default:
             // ignore unknowns
@@ -110,23 +113,25 @@ public final class LoginCommand implements Command {
       pwdChars = password.toCharArray();
       String computedHex = hasher.hashToHex(pwdChars, saltBytes);
 
-      boolean ok = hasher.constantTimeEquals(
-          PasswordHasher.hexToBytes(computedHex), PasswordHasher.hexToBytes(hashHex));
+      boolean ok =
+          hasher.constantTimeEquals(
+              PasswordHasher.hexToBytes(computedHex), PasswordHasher.hexToBytes(hashHex));
 
       if (!ok) {
         err.println("Invalid credentials");
         return 1;
       }
 
-      User sessionUser = new User(
-          u.username(),
-          u.email(),
-          u.phone(),
-          u.idKey(),
-          u.role(),
-          u.passwordHash(),
-          u.salt(),
-          u.createdAt());
+      User sessionUser =
+          new User(
+              u.username(),
+              u.email(),
+              u.phone(),
+              u.idKey(),
+              u.role(),
+              u.passwordHash(),
+              u.salt(),
+              u.createdAt());
       if (!sessions.login(sessionUser)) {
         err.println("Error: unable to persist session");
         return 3;
@@ -139,8 +144,7 @@ public final class LoginCommand implements Command {
       err.println("Error: cannot read users file");
       return 3;
     } finally {
-      if (pwdChars != null)
-        Arrays.fill(pwdChars, '\0');
+      if (pwdChars != null) Arrays.fill(pwdChars, '\0');
     }
   }
 
