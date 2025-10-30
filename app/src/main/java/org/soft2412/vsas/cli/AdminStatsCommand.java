@@ -23,10 +23,7 @@ public final class AdminStatsCommand implements Command {
   }
 
   public AdminStatsCommand(
-      PrintStream out,
-      PrintStream err,
-      SessionService sessions,
-      FileScrollRepository scrolls) {
+      PrintStream out, PrintStream err, SessionService sessions, FileScrollRepository scrolls) {
     this.out = Objects.requireNonNull(out, "out");
     this.err = Objects.requireNonNull(err, "err");
     this.sessions = Objects.requireNonNull(sessions, "sessions");
@@ -69,8 +66,7 @@ public final class AdminStatsCommand implements Command {
       return 0;
     }
 
-    out.printf("%-10s %-28s %-16s %10s %12s%n",
-        "ID", "NAME", "UPLOADER", "UPLOADS", "DOWNLOADS");
+    out.printf("%-10s %-28s %-16s %10s %12s%n", "ID", "NAME", "UPLOADER", "UPLOADS", "DOWNLOADS");
     out.println("------------------------------------------------------------------");
     for (Scroll s : all) {
       out.printf(
@@ -95,10 +91,7 @@ public final class AdminStatsCommand implements Command {
     out.println("----------------------------------------------");
     for (ScrollUsage su : agg.values()) {
       out.printf(
-          "%-16s %10d %12d%n",
-          nvl(su.getUploaderIdKey()),
-          su.getUploads(),
-          su.getDownloads());
+          "%-16s %10d %12d%n", nvl(su.getUploaderIdKey()), su.getUploads(), su.getDownloads());
     }
     return 0;
   }

@@ -393,7 +393,6 @@ final class CommandRegistry {
             .access(CommandRegistration.Access.AUTHENTICATED)
             .build());
 
-
     builder.register(
         CommandRegistration.builder("admin", "stats")
             .factory(r -> new AdminStatsCommand())
@@ -404,8 +403,7 @@ final class CommandRegistry {
                     List.of(),
                     List.of(
                         new CommandHelp.Flag(
-                            "--by uploader", "Group results by uploaderIdKey and sum counts")
-                    ),
+                            "--by uploader", "Group results by uploaderIdKey and sum counts")),
                     // example
                     "admin stats --by uploader",
                     Map.of(
@@ -415,8 +413,6 @@ final class CommandRegistry {
             .access(CommandRegistration.Access.AUTHENTICATED)
             .build());
 
-
-            
     builder.register(
         CommandRegistration.builder("admin", "users", "list")
             .factory(r -> new AdminUsersListCommand())

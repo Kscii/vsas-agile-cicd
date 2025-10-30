@@ -260,7 +260,6 @@ public final class FileScrollRepository implements ScrollRepository {
     }
   }
 
-
   public java.util.Map<String, ScrollUsage> aggregateByUploader() {
     java.util.Map<String, ScrollUsage> map = new java.util.LinkedHashMap<>();
     for (Scroll s : findAll()) {
@@ -275,11 +274,7 @@ public final class FileScrollRepository implements ScrollRepository {
         map.put(key, new ScrollUsage(key, up, down));
       } else {
         map.put(
-            key,
-            new ScrollUsage(
-                key,
-                current.getUploads() + up,
-                current.getDownloads() + down));
+            key, new ScrollUsage(key, current.getUploads() + up, current.getDownloads() + down));
       }
     }
     return map;
