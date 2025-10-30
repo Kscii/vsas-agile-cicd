@@ -221,5 +221,10 @@ class ProfileUpdateCommandTest {
           newPassword == null ? null : Arrays.copyOf(newPassword, newPassword.length);
       return updateResult;
     }
+
+    @Override
+    public boolean deleteByUsername(String username) {
+      return false;
+    }
   }
 }

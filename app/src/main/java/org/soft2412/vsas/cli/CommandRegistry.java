@@ -342,6 +342,29 @@ final class CommandRegistry {
             .build());
 
     builder.register(
+        CommandRegistration.builder("admin", "users", "delete")
+            .factory(r -> new AdminUsersDeleteCommand())
+            .description("Delete a user account (admin only)")
+            .help(
+                new CommandHelp(
+                    "admin users delete --username <u> [--yes]",
+                    List.of(
+                        new CommandHelp.Flag(
+                            "--username <u>", "Username of the account to delete")),
+                    List.of(
+                        new CommandHelp.Flag(
+                            "--yes", "Skip confirmation only when --username is provided")),
+                    "admin users delete --username alice --yes",
+                    Map.of(
+                        0, "success",
+                        1,
+                            "permission or validation error (requires admin, target missing, owns scrolls, or self-delete)",
+                        2, "usage error (missing flags or unknown option)",
+                        3, "I/O error (prompt or persistence failure)")))
+            .access(CommandRegistration.Access.AUTHENTICATED)
+            .build());
+
+    builder.register(
         CommandRegistration.builder("preview")
             .factory(r -> new PreviewCommand())
             .description("Preview metadata and a snippet of a scroll")

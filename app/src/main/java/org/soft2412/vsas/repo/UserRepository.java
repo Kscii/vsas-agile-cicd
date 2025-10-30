@@ -22,4 +22,12 @@ public interface UserRepository {
    * @return {@code true} if the row was updated, {@code false} otherwise
    */
   boolean updateProfile(String username, String newEmail, String newPhone, char[] newPassword);
+
+  /**
+   * Deletes the first persisted user row matching the supplied username.
+   *
+   * @param username the username to delete
+   * @return {@code true} if a row was removed, {@code false} otherwise
+   */
+  boolean deleteByUsername(String username);
 }
