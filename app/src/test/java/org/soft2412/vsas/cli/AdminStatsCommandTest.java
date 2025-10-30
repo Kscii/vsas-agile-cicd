@@ -134,4 +134,30 @@ class AdminStatsCommandTest {
               }
             });
   }
+
+  @Test
+  void invalidByArgument_shouldPrintUsageError() throws Exception {
+    SessionService s = new SessionService();
+    assertTrue(s.login(new User("admin", "", "", "A-INV", "ADMIN", "", "")));
+
+    int code = new AdminStatsCommand().run(new String[] {"--by", "nonsense"});
+    assertEquals(1, code);
+    String err = errBuf.toString(StandardCharsets.UTF_8).toLowerCase();
+    assertTrue(err.contains("invalid") || err.contains("unknown") || err.contains("usage"));
+  }
+
+  @Test
+  void shorten_shouldTruncateLongStrings() throws Exception {
+    AdminStatsCommand cmd = new AdminStatsCommand();
+
+    var m = AdminStatsCommand.class.getDeclaredMethod("shorten", String.class, int.class);
+    m.setAccessible(true);
+
+    String longStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    String result = (String) m.invoke(cmd, longStr, 10);
+
+    assertNotNull(result);
+    assertTrue(result.length() <= 10, "should be truncated to 10 chars");
+    assertTrue(result.endsWith("…") || result.endsWith("."), "should end with ellipsis or dot");
+  }
 }
