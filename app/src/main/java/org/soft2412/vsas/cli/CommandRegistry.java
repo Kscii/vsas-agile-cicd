@@ -123,11 +123,14 @@ final class CommandRegistry {
                     List.of(),
                     "upload --id S-001 --name \"Quarterly Report\" --file ./report.pdf",
                     Map.of(
-                        0, "success",
+                        0,
+                        "success",
                         1,
-                            "validation or permission error (login required, duplicate id, missing file)",
-                        2, "usage error (missing required flags)",
-                        3, "I/O error (copy failed or metadata persistence)")))
+                        "validation or permission error (login required, duplicate id, missing file)",
+                        2,
+                        "usage error (missing required flags)",
+                        3,
+                        "I/O error (copy failed or metadata persistence)")))
             .access(CommandRegistration.Access.AUTHENTICATED)
             .build());
 
@@ -356,11 +359,14 @@ final class CommandRegistry {
                             "--yes", "Skip confirmation only when --username is provided")),
                     "admin users delete --username alice --yes",
                     Map.of(
-                        0, "success",
+                        0,
+                        "success",
                         1,
-                            "permission or validation error (requires admin, target missing, owns scrolls, or self-delete)",
-                        2, "usage error (missing flags or unknown option)",
-                        3, "I/O error (prompt or persistence failure)")))
+                        "permission or validation error (requires admin, target missing, owns scrolls, or self-delete)",
+                        2,
+                        "usage error (missing flags or unknown option)",
+                        3,
+                        "I/O error (prompt or persistence failure)")))
             .access(CommandRegistration.Access.AUTHENTICATED)
             .build());
 
@@ -384,6 +390,27 @@ final class CommandRegistry {
                         1, "permission or validation error (requires admin or unknown user)",
                         2, "usage error (missing or invalid flags)",
                         3, "I/O error (prompt or persistence failure)")))
+            .access(CommandRegistration.Access.AUTHENTICATED)
+            .build());
+
+    builder.register(
+        CommandRegistration.builder("admin", "users", "list")
+            .factory(r -> new AdminUsersListCommand())
+            .description("List users (admin only)")
+            .help(
+                new CommandHelp(
+                    "admin users list [--username <u>] [--id-key <k>] [--role admin|user]",
+                    List.of(),
+                    List.of(
+                        new CommandHelp.Flag("--username <u>", "Filter by username (exact match)"),
+                        new CommandHelp.Flag("--id-key <k>", "Filter by idKey (exact match)"),
+                        new CommandHelp.Flag("--role <role>", "Filter by role (admin|user)")),
+                    "admin users list --role admin",
+                    Map.of(
+                        0, "success",
+                        1, "permission or validation error (requires admin or invalid role)",
+                        2, "usage error (missing values or unknown option)",
+                        3, "I/O error (failed to read users.tsv)")))
             .access(CommandRegistration.Access.AUTHENTICATED)
             .build());
 
@@ -420,11 +447,14 @@ final class CommandRegistry {
                         new CommandHelp.Flag("--password", "Prompt for a new password")),
                     "profile update --email new@example.com --phone 0400000000",
                     Map.of(
-                        0, "success",
+                        0,
+                        "success",
                         1,
-                            "validation or permission error (login required or mismatched passwords)",
-                        2, "usage error (missing subcommand or flags)",
-                        3, "I/O error (password prompt or repository failure)")))
+                        "validation or permission error (login required or mismatched passwords)",
+                        2,
+                        "usage error (missing subcommand or flags)",
+                        3,
+                        "I/O error (password prompt or repository failure)")))
             .access(CommandRegistration.Access.AUTHENTICATED)
             .build());
 
@@ -469,11 +499,14 @@ final class CommandRegistry {
                         new CommandHelp.Flag("--password", "Prompt for a new password")),
                     "profile update --password",
                     Map.of(
-                        0, "success",
+                        0,
+                        "success",
                         1,
-                            "validation or permission error (login required or mismatched passwords)",
-                        2, "usage error (missing fields)",
-                        3, "I/O error (password prompt or repository failure)")))
+                        "validation or permission error (login required or mismatched passwords)",
+                        2,
+                        "usage error (missing fields)",
+                        3,
+                        "I/O error (password prompt or repository failure)")))
             .access(CommandRegistration.Access.AUTHENTICATED)
             .build());
 
