@@ -86,6 +86,8 @@ public final class ScrollUpdateSubcommand {
     }
 
     String finalPayloadPath = old.filePath();
+    boolean fileChanged = false;
+
     if (newFilePath != null && !newFilePath.isBlank()) {
       Path src = Path.of(newFilePath);
       if (!Files.isRegularFile(src)) {
@@ -115,6 +117,7 @@ public final class ScrollUpdateSubcommand {
         Files.createDirectories(dst.getParent());
         Files.copy(src, tmp, StandardCopyOption.REPLACE_EXISTING);
         Files.move(tmp, dst, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        fileChanged = true;
       } catch (IOException e) {
         System.err.println("Failed to replace payload: " + e.getMessage());
         try {
@@ -125,6 +128,11 @@ public final class ScrollUpdateSubcommand {
       }
     }
 
+    long newUploadCount = old.uploadCount();
+    if (fileChanged) {
+      newUploadCount = newUploadCount + 1;
+    }
+
     String name = (newName != null && !newName.isBlank()) ? newName : old.name();
     Scroll updated =
         new Scroll(
@@ -133,7 +141,7 @@ public final class ScrollUpdateSubcommand {
             old.uploaderIdKey(),
             old.uploadDate(),
             finalPayloadPath,
-            old.uploadCount(),
+            newUploadCount,
             old.downloadCount());
 
     boolean ok = repo.update(updated);
