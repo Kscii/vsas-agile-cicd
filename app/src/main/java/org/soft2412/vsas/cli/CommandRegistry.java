@@ -365,6 +365,29 @@ final class CommandRegistry {
             .build());
 
     builder.register(
+        CommandRegistration.builder("admin", "users", "role")
+            .factory(r -> new AdminUsersRoleCommand())
+            .description("Update a user's role (admin only)")
+            .help(
+                new CommandHelp(
+                    "admin users role --username <u> --role admin|user",
+                    List.of(
+                        new CommandHelp.Flag(
+                            "--username <u>", "Username of the account to update")),
+                    List.of(
+                        new CommandHelp.Flag(
+                            "--role <role>",
+                            "New role (admin or user); prompted if the flag is omitted")),
+                    "admin users role --username alice --role admin",
+                    Map.of(
+                        0, "success",
+                        1, "permission or validation error (requires admin or unknown user)",
+                        2, "usage error (missing or invalid flags)",
+                        3, "I/O error (prompt or persistence failure)")))
+            .access(CommandRegistration.Access.AUTHENTICATED)
+            .build());
+
+    builder.register(
         CommandRegistration.builder("preview")
             .factory(r -> new PreviewCommand())
             .description("Preview metadata and a snippet of a scroll")

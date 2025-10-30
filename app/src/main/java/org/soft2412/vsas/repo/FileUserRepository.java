@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -166,6 +167,88 @@ public final class FileUserRepository implements UserRepository {
                 parts[iSalt] = PasswordHasher.bytesToHex(salt);
               }
               updated = true;
+            }
+
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < cols.length; i++) {
+              if (i > 0) sb.append('\t');
+              String value = i < parts.length ? parts[i] : "";
+              sb.append(value == null ? "" : value);
+            }
+            bw.write(sb.toString());
+            bw.write("\n");
+          }
+        }
+      }
+
+      if (!updated) {
+        if (temp != null) {
+          Files.deleteIfExists(temp);
+        }
+        return false;
+      }
+
+      Files.move(temp, usersPath, StandardCopyOption.REPLACE_EXISTING);
+      return true;
+    } catch (IOException e) {
+      if (temp != null) {
+        try {
+          Files.deleteIfExists(temp);
+        } catch (IOException ignored) {
+        }
+      }
+      return false;
+    }
+  }
+
+  @Override
+  public boolean updateRole(String username, String newRole) {
+    if (isBlank(username) || isBlank(newRole)) {
+      return false;
+    }
+    String sanitizedRole = sanitize(newRole);
+    if (isBlank(sanitizedRole)) {
+      return false;
+    }
+    String normalisedRole = sanitizedRole.toUpperCase(Locale.ROOT);
+
+    Path temp = null;
+    boolean updated = false;
+    try {
+      if (!Files.exists(usersPath)) {
+        return false;
+      }
+
+      try (BufferedReader br = Files.newBufferedReader(usersPath, StandardCharsets.UTF_8)) {
+        String header = br.readLine();
+        if (header == null) {
+          return false;
+        }
+        String[] cols = header.split("\t", -1);
+        int iUser = indexOfCol(cols, "username");
+        int iRole = indexOfCol(cols, "role");
+        if (iUser < 0 || iRole < 0) {
+          return false;
+        }
+
+        Path parent = usersPath.getParent();
+        temp = Files.createTempFile(parent == null ? Path.of(".") : parent, "users-", ".tmp");
+        try (BufferedWriter bw = Files.newBufferedWriter(temp, StandardCharsets.UTF_8)) {
+          bw.write(header);
+          bw.write("\n");
+
+          String line;
+          while ((line = br.readLine()) != null) {
+            String[] rawParts = line.split("\t", -1);
+            String[] parts =
+                rawParts.length < cols.length ? Arrays.copyOf(rawParts, cols.length) : rawParts;
+
+            if (username.equals(parts[iUser])) {
+              String existingRole = parts[iRole] == null ? "" : parts[iRole];
+              if (!existingRole.equalsIgnoreCase(normalisedRole)) {
+                parts[iRole] = normalisedRole;
+                updated = true;
+              }
             }
 
             StringBuilder sb = new StringBuilder();

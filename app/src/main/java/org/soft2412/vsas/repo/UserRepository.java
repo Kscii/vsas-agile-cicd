@@ -24,6 +24,15 @@ public interface UserRepository {
   boolean updateProfile(String username, String newEmail, String newPhone, char[] newPassword);
 
   /**
+   * Update the role for the given username.
+   *
+   * @param username account identifier (required)
+   * @param newRole new role value (required)
+   * @return {@code true} if the persisted role was changed, {@code false} otherwise
+   */
+  boolean updateRole(String username, String newRole);
+
+  /**
    * Deletes the first persisted user row matching the supplied username.
    *
    * @param username the username to delete
