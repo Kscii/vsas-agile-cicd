@@ -191,6 +191,42 @@ class BookmarkCommandsTest {
     assertTrue(errBuf.toString(StandardCharsets.UTF_8).contains("missing required option --id"));
   }
 
+  @Test
+  void addUnknownOptionReturnsUsageError() {
+    loginUser("U-1");
+    int code = new BookmarkAddCommand().run(new String[] {"--unknown"});
+    assertEquals(2, code);
+    assertTrue(errBuf.toString(StandardCharsets.UTF_8).contains("unknown option"));
+  }
+
+  @Test
+  void removeUnknownOptionReturnsUsageError() {
+    loginUser("U-1");
+    int code = new BookmarkRemoveCommand().run(new String[] {"--unknown"});
+    assertEquals(2, code);
+    assertTrue(errBuf.toString(StandardCharsets.UTF_8).contains("unknown option"));
+  }
+
+  @Test
+  void listShowsMissingScrollPlaceholder() {
+    loginUser("U-1");
+    BookmarkRepository repo = new FileBookmarkRepository();
+    assertTrue(repo.add("U-1", "S-missing"));
+
+    int code = new BookmarkListCommand().run(new String[0]);
+    assertEquals(0, code);
+    String output = outBuf.toString(StandardCharsets.UTF_8);
+    assertTrue(output.contains("<missing>"));
+  }
+
+  @Test
+  void listPrintsNoBookmarksMessage() {
+    loginUser("U-1");
+    int code = new BookmarkListCommand().run(new String[0]);
+    assertEquals(0, code);
+    assertTrue(outBuf.toString(StandardCharsets.UTF_8).contains("No bookmarks."));
+  }
+
   private void loginUser(String idKey) {
     SessionService sessions = new SessionService();
     assertTrue(

@@ -88,4 +88,39 @@ class FileBookmarkRepositoryTest {
     List<Bookmark> list = repo.listByUser("U-1");
     assertEquals(List.of("S-1", "S-2"), list.stream().map(Bookmark::scrollId).toList());
   }
+
+  @Test
+  void addRejectsBlankArguments() {
+    assertFalse(repo.add("", "S-1"));
+    assertFalse(repo.add("U-1", ""));
+    assertFalse(Files.exists(dataFile));
+  }
+
+  @Test
+  void sanitizeRemovesTabsAndNewlines() throws Exception {
+    assertTrue(repo.add("U-\t1", "S-\n1"));
+    List<String> lines = Files.readAllLines(dataFile);
+    assertTrue(lines.get(0).contains("userIdKey"));
+    String payload = lines.get(1);
+    String[] columns = payload.split("\t");
+    assertTrue(columns.length >= 3);
+    assertEquals("U- 1", columns[0]);
+    assertEquals("S- 1", columns[1]);
+    assertFalse(columns[0].contains("\t"));
+    assertFalse(columns[1].contains("\n"));
+  }
+
+  @Test
+  void existsReturnsFalseForBlankInputOrMissingFile() {
+    assertFalse(repo.exists("", "S-1"));
+    assertFalse(repo.exists("U-1", ""));
+    assertFalse(repo.exists("U-1", "S-1"));
+  }
+
+  @Test
+  void listReturnsEmptyWhenFileMissingOrUserUnknown() {
+    assertTrue(repo.listByUser("U-1").isEmpty());
+    assertTrue(repo.add("U-2", "S-1"));
+    assertTrue(repo.listByUser("U-1").isEmpty());
+  }
 }
