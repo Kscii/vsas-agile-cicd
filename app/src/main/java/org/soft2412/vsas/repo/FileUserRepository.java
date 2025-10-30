@@ -200,6 +200,81 @@ public final class FileUserRepository implements UserRepository {
     }
   }
 
+  @Override
+  public boolean deleteByUsername(String username) {
+    if (isBlank(username)) {
+      return false;
+    }
+    String target = sanitize(username);
+    if (isBlank(target)) {
+      return false;
+    }
+
+    Path temp = null;
+    boolean deleted = false;
+    try {
+      if (!Files.exists(usersPath)) {
+        return false;
+      }
+      try (BufferedReader br = Files.newBufferedReader(usersPath, StandardCharsets.UTF_8)) {
+        String header = br.readLine();
+        if (header == null) {
+          return false;
+        }
+        String[] cols = header.split("\t", -1);
+        int idxUsername = indexOfCol(cols, "username");
+        if (idxUsername < 0) {
+          return false;
+        }
+
+        Path parent = usersPath.getParent();
+        if (parent != null) {
+          Files.createDirectories(parent);
+        }
+        Path tempDir = parent != null ? parent : Path.of(".");
+        temp = Files.createTempFile(tempDir, "users", ".tmp");
+
+        try (BufferedWriter bw = Files.newBufferedWriter(temp, StandardCharsets.UTF_8)) {
+          bw.write(header);
+          bw.write(System.lineSeparator());
+
+          String line;
+          while ((line = br.readLine()) != null) {
+            if (line.isEmpty()) {
+              continue;
+            }
+            String[] parts = line.split("\t", -1);
+            String rowUsername = parts.length > idxUsername ? parts[idxUsername] : "";
+            if (rowUsername.equalsIgnoreCase(target)) {
+              deleted = true;
+              continue;
+            }
+            bw.write(line);
+            bw.write(System.lineSeparator());
+          }
+        }
+      }
+
+      if (!deleted) {
+        if (temp != null) {
+          Files.deleteIfExists(temp);
+        }
+        return false;
+      }
+
+      Files.move(temp, usersPath, StandardCopyOption.REPLACE_EXISTING);
+      return true;
+    } catch (IOException e) {
+      if (temp != null) {
+        try {
+          Files.deleteIfExists(temp);
+        } catch (IOException ignored) {
+        }
+      }
+      return false;
+    }
+  }
+
   // ----------------- helpers -----------------
 
   private Optional<User> scanFirstMatch(String colName, String value) throws IOException {
