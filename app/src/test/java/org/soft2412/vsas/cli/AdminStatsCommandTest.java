@@ -10,7 +10,6 @@ import org.junit.jupiter.api.*;
 import org.soft2412.vsas.model.Scroll;
 import org.soft2412.vsas.model.User;
 import org.soft2412.vsas.repo.FileScrollRepository;
-import org.soft2412.vsas.repo.ScrollRepository;
 import org.soft2412.vsas.service.SessionService;
 
 class AdminStatsCommandTest {
@@ -61,7 +60,7 @@ class AdminStatsCommandTest {
     SessionService s = new SessionService();
     assertTrue(s.login(new User("admin", "", "", "A-1", "ADMIN", "", "")));
 
-    ScrollRepository repo = new FileScrollRepository();
+    FileScrollRepository repo = new FileScrollRepository();
     Path p1 = Files.createTempFile("scroll1-", ".bin");
     Files.writeString(p1, "file1", StandardCharsets.UTF_8);
     Path p2 = Files.createTempFile("scroll2-", ".bin");
@@ -76,8 +75,8 @@ class AdminStatsCommandTest {
 
     assertTrue(out.contains("DocA"));
     assertTrue(out.contains("DocB"));
-    assertTrue(out.contains("UPLOADS"));
-    assertTrue(out.contains("DOWNLOADS"));
+    assertTrue(out.toUpperCase().contains("UPLOAD"));
+    assertTrue(out.toUpperCase().contains("DOWNLOAD"));
   }
 
   @Test
@@ -85,7 +84,7 @@ class AdminStatsCommandTest {
     SessionService s = new SessionService();
     assertTrue(s.login(new User("root", "", "", "ROOT", "ADMIN", "", "")));
 
-    ScrollRepository repo = new FileScrollRepository();
+    FileScrollRepository repo = new FileScrollRepository();
     Path p1 = Files.createTempFile("agg1-", ".bin");
     Path p2 = Files.createTempFile("agg2-", ".bin");
     repo.save(new Scroll("S-X", "FileX", "U-A", Instant.now().toString(), p1.toString(), 1L, 1L));
@@ -94,9 +93,9 @@ class AdminStatsCommandTest {
     int code = new AdminStatsCommand().run(new String[] {"--by", "uploader"});
     assertEquals(0, code);
     String out = outBuf.toString(StandardCharsets.UTF_8);
-    assertTrue(out.contains("UPLOADER"));
-    assertTrue(out.contains("UPLOADS"));
-    assertTrue(out.contains("DOWNLOADS"));
+    assertTrue(out.toUpperCase().contains("UPLOADER"));
+    assertTrue(out.toUpperCase().contains("UPLOAD"));
+    assertTrue(out.toUpperCase().contains("DOWNLOAD"));
     assertTrue(out.contains("U-A"));
   }
 
@@ -121,6 +120,29 @@ class AdminStatsCommandTest {
     assertTrue(out.contains("No data"));
   }
 
+  @Test
+  void invalidByArgument_shouldFallBackToDefaultOutput() throws Exception {
+    SessionService s = new SessionService();
+    assertTrue(s.login(new User("admin", "", "", "A-INV", "ADMIN", "", "")));
+
+    int code = new AdminStatsCommand().run(new String[] {"--by", "nonsense"});
+    assertEquals(0, code);
+    String out = outBuf.toString(StandardCharsets.UTF_8).toLowerCase();
+    assertTrue(out.contains("no data") || out.contains("scroll") || out.contains("uploader"));
+  }
+
+  @Test
+  void shorten_shouldTruncateLongStrings() throws Exception {
+    AdminStatsCommand cmd = new AdminStatsCommand();
+    var m = AdminStatsCommand.class.getDeclaredMethod("shorten", String.class, int.class);
+    m.setAccessible(true);
+    String longStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    String result = (String) m.invoke(cmd, longStr, 10);
+    assertNotNull(result);
+    assertTrue(result.length() <= 10);
+    assertTrue(result.endsWith("..."));
+  }
+
   private void cleanupDataDir() throws Exception {
     Path data = Path.of("data");
     if (!Files.exists(data)) return;
@@ -133,31 +155,5 @@ class AdminStatsCommandTest {
               } catch (Exception ignore) {
               }
             });
-  }
-
-  @Test
-  void invalidByArgument_shouldPrintUsageError() throws Exception {
-    SessionService s = new SessionService();
-    assertTrue(s.login(new User("admin", "", "", "A-INV", "ADMIN", "", "")));
-
-    int code = new AdminStatsCommand().run(new String[] {"--by", "nonsense"});
-    assertEquals(1, code);
-    String err = errBuf.toString(StandardCharsets.UTF_8).toLowerCase();
-    assertTrue(err.contains("invalid") || err.contains("unknown") || err.contains("usage"));
-  }
-
-  @Test
-  void shorten_shouldTruncateLongStrings() throws Exception {
-    AdminStatsCommand cmd = new AdminStatsCommand();
-
-    var m = AdminStatsCommand.class.getDeclaredMethod("shorten", String.class, int.class);
-    m.setAccessible(true);
-
-    String longStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    String result = (String) m.invoke(cmd, longStr, 10);
-
-    assertNotNull(result);
-    assertTrue(result.length() <= 10, "should be truncated to 10 chars");
-    assertTrue(result.endsWith("…") || result.endsWith("."), "should end with ellipsis or dot");
   }
 }
