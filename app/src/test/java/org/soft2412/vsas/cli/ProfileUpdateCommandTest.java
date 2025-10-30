@@ -223,6 +223,11 @@ class ProfileUpdateCommandTest {
     }
 
     @Override
+    public boolean updateRole(String username, String newRole) {
+      return false;
+    }
+
+    @Override
     public boolean deleteByUsername(String username) {
       return false;
     }
