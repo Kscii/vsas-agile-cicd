@@ -123,11 +123,14 @@ final class CommandRegistry {
                     List.of(),
                     "upload --id S-001 --name \"Quarterly Report\" --file ./report.pdf",
                     Map.of(
-                        0, "success",
+                        0,
+                        "success",
                         1,
-                            "validation or permission error (login required, duplicate id, missing file)",
-                        2, "usage error (missing required flags)",
-                        3, "I/O error (copy failed or metadata persistence)")))
+                        "validation or permission error (login required, duplicate id, missing file)",
+                        2,
+                        "usage error (missing required flags)",
+                        3,
+                        "I/O error (copy failed or metadata persistence)")))
             .access(CommandRegistration.Access.AUTHENTICATED)
             .build());
 
@@ -342,6 +345,35 @@ final class CommandRegistry {
             .build());
 
     builder.register(
+        CommandRegistration.builder("admin", "users", "add")
+            .factory(r -> new AdminUsersAddCommand())
+            .description("Create a user account (admin only)")
+            .help(
+                new CommandHelp(
+                    "admin users add --username <u> --id-key <k> --role user|admin [--email <e>] [--phone <ph>] [--password <p>]",
+                    List.of(
+                        new CommandHelp.Flag("--username <u>", "Username of the new account"),
+                        new CommandHelp.Flag("--id-key <k>", "Unique identifier key"),
+                        new CommandHelp.Flag("--role user|admin", "Initial role")),
+                    List.of(
+                        new CommandHelp.Flag("--email <e>", "Optional email address"),
+                        new CommandHelp.Flag("--phone <ph>", "Optional phone number"),
+                        new CommandHelp.Flag(
+                            "--password <p>", "Optional plaintext password; prompted if omitted")),
+                    "admin users add --username alice --id-key U-100 --role admin --email alice@example.com --phone 0400000000",
+                    Map.of(
+                        0,
+                        "success",
+                        1,
+                        "validation or permission error (requires admin, duplicate username/id-key, invalid role/email/phone, or password mismatch)",
+                        2,
+                        "usage error (missing required flags or unknown option)",
+                        3,
+                        "I/O error (password prompt or persistence failure)")))
+            .access(CommandRegistration.Access.AUTHENTICATED)
+            .build());
+
+    builder.register(
         CommandRegistration.builder("admin", "users", "delete")
             .factory(r -> new AdminUsersDeleteCommand())
             .description("Delete a user account (admin only)")
@@ -356,11 +388,14 @@ final class CommandRegistry {
                             "--yes", "Skip confirmation only when --username is provided")),
                     "admin users delete --username alice --yes",
                     Map.of(
-                        0, "success",
+                        0,
+                        "success",
                         1,
-                            "permission or validation error (requires admin, target missing, owns scrolls, or self-delete)",
-                        2, "usage error (missing flags or unknown option)",
-                        3, "I/O error (prompt or persistence failure)")))
+                        "permission or validation error (requires admin, target missing, owns scrolls, or self-delete)",
+                        2,
+                        "usage error (missing flags or unknown option)",
+                        3,
+                        "I/O error (prompt or persistence failure)")))
             .access(CommandRegistration.Access.AUTHENTICATED)
             .build());
 
@@ -420,11 +455,14 @@ final class CommandRegistry {
                         new CommandHelp.Flag("--password", "Prompt for a new password")),
                     "profile update --email new@example.com --phone 0400000000",
                     Map.of(
-                        0, "success",
+                        0,
+                        "success",
                         1,
-                            "validation or permission error (login required or mismatched passwords)",
-                        2, "usage error (missing subcommand or flags)",
-                        3, "I/O error (password prompt or repository failure)")))
+                        "validation or permission error (login required or mismatched passwords)",
+                        2,
+                        "usage error (missing subcommand or flags)",
+                        3,
+                        "I/O error (password prompt or repository failure)")))
             .access(CommandRegistration.Access.AUTHENTICATED)
             .build());
 
@@ -469,11 +507,14 @@ final class CommandRegistry {
                         new CommandHelp.Flag("--password", "Prompt for a new password")),
                     "profile update --password",
                     Map.of(
-                        0, "success",
+                        0,
+                        "success",
                         1,
-                            "validation or permission error (login required or mismatched passwords)",
-                        2, "usage error (missing fields)",
-                        3, "I/O error (password prompt or repository failure)")))
+                        "validation or permission error (login required or mismatched passwords)",
+                        2,
+                        "usage error (missing fields)",
+                        3,
+                        "I/O error (password prompt or repository failure)")))
             .access(CommandRegistration.Access.AUTHENTICATED)
             .build());
 
