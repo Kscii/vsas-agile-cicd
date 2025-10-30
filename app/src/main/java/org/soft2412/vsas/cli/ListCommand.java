@@ -7,13 +7,21 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.stream.Collectors;
+import org.soft2412.vsas.model.Bookmark;
 import org.soft2412.vsas.model.Scroll;
+import org.soft2412.vsas.model.User;
+import org.soft2412.vsas.repo.BookmarkRepository;
+import org.soft2412.vsas.repo.FileBookmarkRepository;
 import org.soft2412.vsas.repo.FileScrollRepository;
 import org.soft2412.vsas.repo.ScrollRepository;
+import org.soft2412.vsas.service.SessionService;
 
 public final class ListCommand implements Command {
   private final ScrollRepository scrolls = new FileScrollRepository();
+  private final SessionService sessions = new SessionService();
+  private final BookmarkRepository bookmarks = new FileBookmarkRepository();
 
   private static final DateTimeFormatter FROM_TO_FMT = DateTimeFormatter.ISO_LOCAL_DATE;
 
@@ -119,9 +127,10 @@ public final class ListCommand implements Command {
     }
 
     // ---- Fixed-width table for stable scripting-friendly output ----
+    Set<String> bookmarkedIds = bookmarkedScrollIds();
     System.out.println(formatFixedHeader());
     for (Scroll s : filtered) {
-      System.out.println(formatFixedRow(s));
+      System.out.println(formatFixedRow(s, bookmarkedIds.contains(s.id())));
     }
 
     return 0;
@@ -131,13 +140,30 @@ public final class ListCommand implements Command {
     return String.format(FIXED_HEADER_FMT, "id", "name", "uploader", "uploadDate");
   }
 
-  private static String formatFixedRow(Scroll s) {
+  private String formatFixedRow(Scroll s, boolean bookmarked) {
     return String.format(
         FIXED_ROW_FMT,
         cut(s.id(), W_ID),
-        cut(s.name(), W_NAME),
+        formatName(s.name(), bookmarked),
         cut(s.uploaderIdKey(), W_UPLOADER),
         cut(s.uploadDate(), W_DATE));
+  }
+
+  private String formatName(String originalName, boolean bookmarked) {
+    if (!bookmarked) {
+      return cut(originalName, W_NAME);
+    }
+    String marker = "[BK]";
+    String base = originalName == null ? "" : originalName.trim();
+    if (base.isEmpty()) {
+      return cut(marker, W_NAME);
+    }
+    int allowance = W_NAME - marker.length() - 1;
+    if (allowance <= 0) {
+      return cut(marker, W_NAME);
+    }
+    String prefix = base.length() > allowance ? base.substring(0, allowance) : base;
+    return cut(prefix + " " + marker, W_NAME);
   }
 
   private static String cut(String v, int width) {
@@ -154,6 +180,21 @@ public final class ListCommand implements Command {
     } catch (Exception ignore) {
       return null;
     }
+  }
+
+  private Set<String> bookmarkedScrollIds() {
+    return sessions
+        .currentUser()
+        .map(User::idKey)
+        .filter(id -> id != null && !id.isBlank())
+        .map(bookmarks::listByUser)
+        .map(
+            list ->
+                list.stream()
+                    .map(Bookmark::scrollId)
+                    .filter(id -> id != null && !id.isBlank())
+                    .collect(Collectors.toSet()))
+        .orElseGet(java.util.Collections::emptySet);
   }
 
   @Override

@@ -154,6 +154,97 @@ final class CommandRegistry {
             .build());
 
     builder.register(
+        CommandRegistration.builder("bookmark")
+            .factory(
+                r ->
+                    new Command() {
+                      @Override
+                      public int run(String[] args) {
+                        if (args != null && args.length > 0) {
+                          System.err.println(
+                              "Unknown bookmark subcommand: " + String.join(" ", args));
+                        }
+                        System.out.println("Usage:");
+                        System.out.println("  bookmark add --id <sid>");
+                        System.out.println("  bookmark list");
+                        System.out.println("  bookmark remove --id <sid> [--yes]");
+                        return 2;
+                      }
+
+                      @Override
+                      public String name() {
+                        return "bookmark";
+                      }
+
+                      @Override
+                      public String description() {
+                        return "Manage personal scroll bookmarks";
+                      }
+                    })
+            .description("Manage personal scroll bookmarks")
+            .help(
+                new CommandHelp(
+                    "bookmark <subcommand>",
+                    List.of(new CommandHelp.Flag("<subcommand>", "One of: add, list, remove")),
+                    List.of(),
+                    "bookmark add --id S-001",
+                    Map.of(
+                        0, "success (subcommand dependent)",
+                        2, "usage error (missing or unknown subcommand)")))
+            .access(CommandRegistration.Access.AUTHENTICATED)
+            .build());
+
+    builder.register(
+        CommandRegistration.builder("bookmark", "add")
+            .factory(r -> new BookmarkAddCommand())
+            .description("Add a bookmark for a scroll")
+            .help(
+                new CommandHelp(
+                    "bookmark add --id <sid>",
+                    List.of(new CommandHelp.Flag("--id <sid>", "Scroll identifier to bookmark")),
+                    List.of(),
+                    "bookmark add --id S-001",
+                    Map.of(
+                        0, "success (including already bookmarked)",
+                        1, "validation or permission error (login required or scroll missing)",
+                        2, "usage error (missing flags or unknown option)",
+                        3, "I/O error (failed to persist bookmark)")))
+            .access(CommandRegistration.Access.AUTHENTICATED)
+            .build());
+
+    builder.register(
+        CommandRegistration.builder("bookmark", "list")
+            .factory(r -> new BookmarkListCommand())
+            .description("List bookmarks for the current user")
+            .help(
+                new CommandHelp(
+                    "bookmark list",
+                    List.of(),
+                    List.of(),
+                    "bookmark list",
+                    Map.of(0, "success", 1, "permission error (login required)")))
+            .access(CommandRegistration.Access.AUTHENTICATED)
+            .build());
+
+    builder.register(
+        CommandRegistration.builder("bookmark", "remove")
+            .factory(r -> new BookmarkRemoveCommand())
+            .description("Remove a bookmark")
+            .help(
+                new CommandHelp(
+                    "bookmark remove --id <sid> [--yes]",
+                    List.of(new CommandHelp.Flag("--id <sid>", "Scroll identifier to remove")),
+                    List.of(new CommandHelp.Flag("--yes", "Skip the confirmation prompt")),
+                    "bookmark remove --id S-001 --yes",
+                    Map.of(
+                        0, "success (including aborted confirmation)",
+                        1, "validation or permission error (login required or not bookmarked)",
+                        2, "usage error (missing flags or unknown option)",
+                        3, "I/O error (failed to persist bookmark removal)")))
+            .access(CommandRegistration.Access.AUTHENTICATED)
+            .build());
+
+    builder.register(
         CommandRegistration.builder("scroll")
             .factory(r -> new ScrollCommand())
             .description("Manage scroll lifecycle commands")

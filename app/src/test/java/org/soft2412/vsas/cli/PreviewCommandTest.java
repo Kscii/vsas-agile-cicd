@@ -11,12 +11,19 @@ import java.time.Instant;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.soft2412.vsas.model.User;
+import org.soft2412.vsas.repo.BookmarkRepository;
+import org.soft2412.vsas.repo.FileBookmarkRepository;
+import org.soft2412.vsas.service.SessionService;
 
 public class PreviewCommandTest {
 
   private Path dataDir;
   private Path filesDir;
   private Path scrollsTsv;
+  private Path sessionDir;
+  private Path sessionFile;
+  private String previousSessionPath;
 
   @BeforeEach
   void setup() throws Exception {
@@ -36,6 +43,11 @@ public class PreviewCommandTest {
               });
     }
     Files.createDirectories(filesDir);
+
+    sessionDir = Files.createTempDirectory("vsas-session-preview-");
+    sessionFile = sessionDir.resolve("session.properties");
+    previousSessionPath = System.getProperty("vsas.session.path");
+    System.setProperty("vsas.session.path", sessionFile.toString());
   }
 
   @AfterEach
@@ -50,6 +62,17 @@ public class PreviewCommandTest {
                 } catch (Exception ignore) {
                 }
               });
+    }
+    if (previousSessionPath == null) {
+      System.clearProperty("vsas.session.path");
+    } else {
+      System.setProperty("vsas.session.path", previousSessionPath);
+    }
+    if (sessionFile != null) {
+      Files.deleteIfExists(sessionFile);
+    }
+    if (sessionDir != null) {
+      Files.deleteIfExists(sessionDir);
     }
   }
 
@@ -300,6 +323,46 @@ public class PreviewCommandTest {
       assertEquals(2, c3);
       assertTrue(
           errBuf.toString(StandardCharsets.UTF_8).toLowerCase().contains("unexpected argument"));
+    } finally {
+      System.setOut(oldOut);
+      System.setErr(oldErr);
+    }
+  }
+
+  @Test
+  void previewAppendsBookmarkMarkerWhenBookmarked() throws Exception {
+    String id = "sbk";
+    Path f = filesDir.resolve(id + ".bin");
+    Files.write(f, "content".getBytes(StandardCharsets.UTF_8));
+    writeScrollRow(
+        scrollsTsv,
+        id,
+        "Special",
+        "U-BK",
+        Instant.parse("2025-03-01T00:00:00Z").toString(),
+        f.toString(),
+        0L);
+
+    SessionService sessions = new SessionService();
+    assertTrue(
+        sessions.login(new User("bob", "", "", "U-BK", "USER", "", "")), "login should succeed");
+    BookmarkRepository bookmarks = new FileBookmarkRepository();
+    assertTrue(bookmarks.add("U-BK", id));
+
+    PrintStream oldOut = System.out;
+    PrintStream oldErr = System.err;
+    try {
+      ByteArrayOutputStream outBuf = new ByteArrayOutputStream();
+      ByteArrayOutputStream errBuf = new ByteArrayOutputStream();
+      System.setOut(new PrintStream(outBuf, true, StandardCharsets.UTF_8));
+      System.setErr(new PrintStream(errBuf, true, StandardCharsets.UTF_8));
+
+      int code = new PreviewCommand().run(new String[] {"--id", id});
+
+      assertEquals(0, code);
+      String out = outBuf.toString(StandardCharsets.UTF_8);
+      assertTrue(out.contains("name: Special [BK]"));
+      assertEquals("", errBuf.toString(StandardCharsets.UTF_8));
     } finally {
       System.setOut(oldOut);
       System.setErr(oldErr);
