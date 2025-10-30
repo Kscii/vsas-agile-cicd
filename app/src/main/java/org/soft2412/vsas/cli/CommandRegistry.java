@@ -345,6 +345,35 @@ final class CommandRegistry {
             .build());
 
     builder.register(
+        CommandRegistration.builder("admin", "users", "add")
+            .factory(r -> new AdminUsersAddCommand())
+            .description("Create a user account (admin only)")
+            .help(
+                new CommandHelp(
+                    "admin users add --username <u> --id-key <k> --role user|admin [--email <e>] [--phone <ph>] [--password <p>]",
+                    List.of(
+                        new CommandHelp.Flag("--username <u>", "Username of the new account"),
+                        new CommandHelp.Flag("--id-key <k>", "Unique identifier key"),
+                        new CommandHelp.Flag("--role user|admin", "Initial role")),
+                    List.of(
+                        new CommandHelp.Flag("--email <e>", "Optional email address"),
+                        new CommandHelp.Flag("--phone <ph>", "Optional phone number"),
+                        new CommandHelp.Flag(
+                            "--password <p>", "Optional plaintext password; prompted if omitted")),
+                    "admin users add --username alice --id-key U-100 --role admin --email alice@example.com --phone 0400000000",
+                    Map.of(
+                        0,
+                        "success",
+                        1,
+                        "validation or permission error (requires admin, duplicate username/id-key, invalid role/email/phone, or password mismatch)",
+                        2,
+                        "usage error (missing required flags or unknown option)",
+                        3,
+                        "I/O error (password prompt or persistence failure)")))
+            .access(CommandRegistration.Access.AUTHENTICATED)
+            .build());
+
+    builder.register(
         CommandRegistration.builder("admin", "users", "delete")
             .factory(r -> new AdminUsersDeleteCommand())
             .description("Delete a user account (admin only)")

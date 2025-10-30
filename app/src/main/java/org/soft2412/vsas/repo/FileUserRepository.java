@@ -16,24 +16,18 @@ import java.util.regex.Pattern;
 import org.soft2412.vsas.model.User;
 import org.soft2412.vsas.security.PasswordHasher;
 
-/**
- * TSV-backed user repository.
- *
- * <p>File path: data/users.tsv Header (tab-separated): username email phone idKey role passwordHash
- * salt createdAt
- *
- * <p>Notes: - This implementation swallows I/O exceptions and returns Optional.empty()/false on
- * failure, because the interface does not declare checked exceptions. - Fields are sanitized to
- * avoid tabs/newlines breaking TSV format.
- */
 public final class FileUserRepository implements UserRepository {
+
+  private static final String USERS_PATH_PROPERTY = "vsas.users.path";
+  private static final String DATA_DIR_PROPERTY = "vsas.data.dir";
 
   private static final String[] HEADER =
       new String[] {
         "username", "email", "phone", "idKey", "role", "passwordHash", "salt", "createdAt"
       };
   private static final Pattern TAB_OR_NEWLINE = Pattern.compile("[\\t\\r\\n]");
-  private static final Path DEFAULT_PATH = Path.of("data/users.tsv");
+
+  private static final Path DEFAULT_PATH = resolveDefaultUsersPath();
 
   private final Path usersPath;
 
@@ -358,8 +352,6 @@ public final class FileUserRepository implements UserRepository {
     }
   }
 
-  // ----------------- helpers -----------------
-
   private Optional<User> scanFirstMatch(String colName, String value) throws IOException {
     if (!Files.exists(usersPath)) return Optional.empty();
 
@@ -401,7 +393,6 @@ public final class FileUserRepository implements UserRepository {
           } catch (Exception e) {
             ts = Instant.now();
           }
-          // Use 8-arg ctor (createdAt) for compatibility with the model we added
           User u =
               new User(p[iUser], p[iEmail], p[iPhone], p[iIdKey], p[iRole], p[iHash], p[iSalt], ts);
           return Optional.of(u);
@@ -443,5 +434,21 @@ public final class FileUserRepository implements UserRepository {
 
   private static boolean isBlank(String s) {
     return s == null || s.trim().isEmpty();
+  }
+
+  private static Path resolveDefaultUsersPath() {
+    String explicit = System.getProperty(USERS_PATH_PROPERTY);
+    if (explicit != null && !explicit.isBlank()) {
+      return Path.of(explicit).normalize();
+    }
+    String dataDir = System.getProperty(DATA_DIR_PROPERTY);
+    if (dataDir != null && !dataDir.isBlank()) {
+      Path p = Path.of(dataDir).normalize();
+      if (p.getFileName() != null && p.getFileName().toString().equalsIgnoreCase("users.tsv")) {
+        return p;
+      }
+      return p.resolve("users.tsv").normalize();
+    }
+    return Path.of("data", "users.tsv").normalize();
   }
 }
