@@ -239,12 +239,12 @@ pipeline {
               echo "Release ${NEXT_VERSION} created via gh."
             fi
 
-            # Upload fat/uber jar as vavs-<version>.jar
+            # Upload fat/uber jar as vsas-<version>.jar
             JAR_GLOB='app/build/libs/*-all.jar'
             if FIRST_JAR="$(ls ${JAR_GLOB} 2>/dev/null | head -n1)"; then
               VER_NUM="${NEXT_VERSION#V}"
               VER_NUM="${VER_NUM#v}"
-              OUT_NAME="vavs-${VER_NUM}.jar"
+              OUT_NAME="vsas-${VER_NUM}.jar"
               cp "${FIRST_JAR}" "${OUT_NAME}"
               echo "Uploading ${OUT_NAME}"
               gh release upload "${NEXT_VERSION}" "${OUT_NAME}" -R "${GITHUB_OWNER}/${GITHUB_REPO}" --clobber
