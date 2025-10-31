@@ -25,10 +25,10 @@ VSAS (Virtual Scroll Archive System) is a Java-based CLI application designed to
 
 ### Running Pre-built JAR (Recommended)
 
-Download the latest `app-all.jar` from the releases and run:
+Download the latest `vsas-version.jar` from the releases and run:
 
 ```bash
-java -jar app-all.jar
+java -jar vsas-version.jar
 ```
 
 This is the recommended way to run the application.
