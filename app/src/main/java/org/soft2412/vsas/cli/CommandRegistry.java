@@ -45,7 +45,8 @@ final class CommandRegistry {
                     List.of(
                         new CommandHelp.Flag(
                             "--password <p>", "Optional plaintext password; prompted if omitted"),
-                        new CommandHelp.Flag("--role <role>", "Optional role override")),
+                        new CommandHelp.Flag(
+                            "--role <role>", "Optional role override (user|admin)")),
                     "register --username alice --password Secr3t! --email alice@example.com --phone 0400000000 --id-key U-100",
                     Map.of(
                         0, "success",

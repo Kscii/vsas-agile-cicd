@@ -180,4 +180,45 @@ public class LoginCommandTest {
         "should print usage message");
     assertEquals(0, calls.get(), "should not prompt for password when username is missing");
   }
+
+  @Test
+  void login_success_afterRegisteringAdminUser() throws Exception {
+    ByteArrayOutputStream regOut = new ByteArrayOutputStream();
+    ByteArrayOutputStream regErr = new ByteArrayOutputStream();
+    RegisterCommand register =
+        new RegisterCommand(new PrintStream(regOut), new PrintStream(regErr), hasher);
+
+    int regCode =
+        register.run(
+            new String[] {
+              "--username", "root",
+              "--password", "Adm1n$Pass",
+              "--email", "root@example.com",
+              "--phone", "0400000001",
+              "--id-key", "A-ADMIN",
+              "--role", "admin"
+            });
+
+    assertEquals(0, regCode, "admin registration should succeed");
+    assertTrue(
+        regErr.toString(StandardCharsets.UTF_8).isEmpty(), "register stderr should be empty");
+
+    ByteArrayOutputStream outBuf = new ByteArrayOutputStream();
+    ByteArrayOutputStream errBuf = new ByteArrayOutputStream();
+    LoginCommand cmd = new LoginCommand(new PrintStream(outBuf), new PrintStream(errBuf), hasher);
+
+    int code = cmd.run(new String[] {"--username", "root", "--password", "Adm1n$Pass"});
+
+    assertEquals(0, code, "login should succeed for newly registered admin");
+    assertTrue(
+        outBuf.toString(StandardCharsets.UTF_8).contains("Login success"),
+        "stdout should contain success message");
+    assertTrue(errBuf.toString(StandardCharsets.UTF_8).isEmpty(), "stderr should be empty");
+
+    Properties props = new Properties();
+    props.load(Files.newBufferedReader(sessionFile, StandardCharsets.UTF_8));
+    assertEquals("root", props.getProperty("username"));
+    assertEquals("A-ADMIN", props.getProperty("idKey"));
+    assertEquals("ADMIN", props.getProperty("role"));
+  }
 }

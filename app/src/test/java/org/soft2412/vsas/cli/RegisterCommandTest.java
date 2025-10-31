@@ -126,4 +126,32 @@ public class RegisterCommandTest {
     String err = errBuf.toString(StandardCharsets.UTF_8);
     assertTrue(err.contains("missing required flags"));
   }
+
+  @Test
+  void register_withAdminRole_persistsAdminValue() throws Exception {
+    ByteArrayOutputStream outBuf = new ByteArrayOutputStream();
+    ByteArrayOutputStream errBuf = new ByteArrayOutputStream();
+    RegisterCommand cmd =
+        new RegisterCommand(new PrintStream(outBuf), new PrintStream(errBuf), new PasswordHasher());
+
+    int code =
+        cmd.run(
+            new String[] {
+              "--username", "root",
+              "--password", "Adm1n$Pass",
+              "--email", "root@example.com",
+              "--phone", "0400000001",
+              "--id-key", "A-001",
+              "--role", "admin"
+            });
+
+    assertEquals(0, code, "admin registration should succeed");
+    assertTrue(Files.exists(usersTsv), "users.tsv should be created");
+
+    String[] lines = Files.readString(usersTsv, StandardCharsets.UTF_8).split("\\R");
+    assertTrue(lines.length >= 2, "admin record should be written");
+    String[] cols = lines[1].split("\\t", -1);
+    assertEquals("root", cols[0], "username should match");
+    assertEquals("ADMIN", cols[4], "role column should persist ADMIN");
+  }
 }

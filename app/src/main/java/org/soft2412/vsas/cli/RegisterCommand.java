@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.regex.Pattern;
 import org.soft2412.vsas.model.User;
@@ -88,7 +89,7 @@ public final class RegisterCommand implements Command {
         || idKey == null
         || idKey.trim().isEmpty()) {
       err.println(
-          "Error: missing required flags. Usage: register --username <u> [--password <p>] --email <e> --phone <ph> --id-key <k>");
+          "Error: missing required flags. Usage: register --username <u> [--password <p>] --email <e> --phone <ph> --id-key <k> [--role user|admin]");
       return 2;
     }
 
@@ -119,7 +120,7 @@ public final class RegisterCommand implements Command {
     email = sanitize(email);
     phone = sanitize(phone);
     idKey = sanitize(idKey);
-    role = (role == null || role.trim().isEmpty()) ? "USER" : sanitize(role);
+    role = normalizeRole(role);
 
     // ---- Task #14: enforce unique idKey BEFORE hashing/persisting ----
     try {
@@ -171,5 +172,19 @@ public final class RegisterCommand implements Command {
 
   private static String sanitize(String s) {
     return TAB_OR_NEWLINE.matcher(s).replaceAll(" ").trim();
+  }
+
+  private static String normalizeRole(String role) {
+    if (role == null || role.trim().isEmpty()) {
+      return "USER";
+    }
+    String cleaned = sanitize(role);
+    if (cleaned.equalsIgnoreCase("admin")) {
+      return "ADMIN";
+    }
+    if (cleaned.equalsIgnoreCase("user")) {
+      return "USER";
+    }
+    return cleaned.toUpperCase(Locale.ROOT);
   }
 }
