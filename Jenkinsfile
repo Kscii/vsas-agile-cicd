@@ -239,12 +239,15 @@ pipeline {
               echo "Release ${NEXT_VERSION} created via gh."
             fi
 
-            # Upload fat/uber jar if present (keep default source archives)
+            # Upload fat/uber jar as vsas-<version>.jar
             JAR_GLOB='app/build/libs/*-all.jar'
-            if ls ${JAR_GLOB} >/dev/null 2>&1; then
-              echo "Uploading fat jar(s):"
-              ls -lh ${JAR_GLOB} || true
-              gh release upload "${NEXT_VERSION}" ${JAR_GLOB} -R "${GITHUB_OWNER}/${GITHUB_REPO}" --clobber
+            if FIRST_JAR="$(ls ${JAR_GLOB} 2>/dev/null | head -n1)"; then
+              VER_NUM="${NEXT_VERSION#V}"
+              VER_NUM="${VER_NUM#v}"
+              OUT_NAME="vsas-${VER_NUM}.jar"
+              cp "${FIRST_JAR}" "${OUT_NAME}"
+              echo "Uploading ${OUT_NAME}"
+              gh release upload "${NEXT_VERSION}" "${OUT_NAME}" -R "${GITHUB_OWNER}/${GITHUB_REPO}" --clobber
             else
               echo "No fat jar found at ${JAR_GLOB}; skip upload."
             fi
