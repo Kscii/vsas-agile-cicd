@@ -38,7 +38,7 @@ This is the recommended way to run the application.
 Clone the repository and build using Gradle:
 
 ```bash
-git clone <repository-url>
+git clone https://github.sydney.edu.au/SOFT2412-COMP9412-2025s2/A3-T28-G03.git
 cd A3-T28-G03
 ./gradlew shadowJar
 ```
