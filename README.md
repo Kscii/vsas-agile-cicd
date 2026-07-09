@@ -1,432 +1,124 @@
 # VSAS - Virtual Scroll Archive System
 
-## Overview
+Portfolio migration of a University of Sydney SOFT2412/COMP9412 team project, presented as evidence of my Java engineering, Scrum delivery, and CI/CD automation work.
 
-VSAS (Virtual Scroll Archive System) is a Java-based CLI application designed to manage digital documents (scrolls) with features including user registration, authentication, upload/download functionality, bookmarking, and administrative controls.
+VSAS is a Java 17 command-line application for managing binary "scroll" documents. It supports authenticated upload/download workflows, searchable metadata, bookmarks, role-based admin commands, and release-ready packaging through a Jenkins multibranch pipeline.
 
-## Features
+## Portfolio Focus
 
-- User registration and authentication with secure password hashing
-- Role-based access control (user and admin roles)
-- Upload and download scroll binaries with metadata
-- Scroll lifecycle management (create, read, update, delete)
-- Personal bookmarking system
-- Advanced filtering and search capabilities
-- Preview functionality for scroll content
-- Administrative user and statistics management
-- Interactive shell and direct command-line execution modes
+- **CI/CD engineering:** designed and maintained a Jenkins pipeline that checks out multibranch/PR builds, verifies Google Java Format, builds with Gradle, runs JUnit 5 tests, publishes JaCoCo XML/HTML coverage, archives build artifacts, and creates tagged GitHub releases from `main`.
+- **Agile delivery:** delivered through three Scrum sprints with user stories, review gates, sprint demos, retrospectives, and tagged release snapshots. Sprint reports are archived in [`docs/sprints`](docs/sprints).
+- **Java application design:** implemented a command registry/dispatcher CLI, file-backed repositories, salted password hashing, session management, role-based admin controls, scroll lifecycle commands, and focused unit/integration tests.
+- **Release discipline:** kept annotated tags, release artifacts, and versioned fat JARs as portfolio evidence after migrating the project from the original Sydney GitHub Enterprise Server repository.
 
-## Requirements
+## My Contribution Highlights
 
-- Java 17 or higher
-- Gradle 8.7 or higher (included via wrapper)
+Across the sprint reports, my main focus areas were Scrum coordination and the CI/CD/release track:
 
-## Installation
+- acted as Scrum Master across the project, organizing sprint ceremonies and keeping delivery aligned with user stories;
+- configured and maintained the Jenkins CI/CD server and pipeline;
+- added release automation for semantic tags, GitHub Releases, and versioned JAR assets;
+- helped enforce code review rules and CI status checks before merges;
+- implemented or contributed to user-facing features including secure registration/password hashing, search/filter workflows, masked password prompts, and admin user management.
 
-### Running Pre-built JAR (Recommended)
+## Application Capabilities
 
-Download the latest `vsas-version.jar` from the releases and run:
+VSAS can be run interactively or as direct CLI commands.
 
-```bash
-java -jar vsas-version.jar
-```
+- register, login, logout, and inspect the current session;
+- upload, list, preview, download, update, and delete scroll binaries;
+- filter scroll metadata by uploader, scroll ID, name, and date range;
+- bookmark scrolls for authenticated users;
+- manage users, roles, and usage statistics as an admin;
+- package the app as an executable fat JAR with Gradle Shadow.
 
-This is the recommended way to run the application.
+## Technology Stack
 
-### Building from Source
+- **Language/runtime:** Java 17
+- **Build:** Gradle wrapper, Gradle application plugin, Shadow JAR
+- **Testing:** JUnit 5, 39 test classes, JaCoCo coverage reports
+- **Formatting:** Google Java Format Gradle plugin
+- **CI/CD:** Jenkins Declarative Pipeline, multibranch builds, release stages, artifact archiving
+- **Persistence:** TSV/file-backed repositories for users, scroll metadata, bookmarks, and usage counters
+- **Security:** salted SHA-256 password hashing and masked interactive password prompts
 
-Clone the repository and build using Gradle:
+## CI/CD Pipeline
+
+The preserved [`Jenkinsfile`](Jenkinsfile) demonstrates the delivery pipeline used during the project:
+
+1. checkout branch or PR source;
+2. run sanity checks and prepare an isolated Gradle cache;
+3. verify formatting with Google Java Format;
+4. build regular and fat JAR artifacts;
+5. run JUnit tests and generate JaCoCo XML/HTML coverage;
+6. archive JARs and coverage artifacts;
+7. on `main`, compute the next semantic version, create an annotated tag, create a GitHub release, and upload `vsas-<version>.jar`.
+
+The original pipeline targeted the Sydney GHES host. In this public portfolio migration, the historical pipeline is intentionally preserved as evidence rather than silently rewritten into a different deployment environment.
+
+## Sprint Evidence
+
+- [Sprint 1 report](docs/sprints/2025_SOFT2412_Sprint_Report_A3-T28-G03_Sprint1.pdf): CLI MVP, registration, login/session flow, salted password hashing, upload/list foundation, Jenkins CI setup.
+- [Sprint 2 report](docs/sprints/2025_SOFT2412_Sprint_Report_A3-T28-G03_Sprint2.pdf): profile and scroll lifecycle features, search/filter UX, masked password prompts, code review rules, automated release flow.
+- [Sprint 3 report](docs/sprints/2025_SOFT2412_Sprint_Report_A3-T28-G03_Sprint3.pdf): admin command set, bookmarks, coverage publishing, multibranch CI/CD, final release packaging.
+
+## Run Locally
+
+Requirements:
+
+- Java 17 or newer
+- Git
+
+Build and test:
 
 ```bash
 git clone https://github.com/Kscii/vsas-agile-cicd.git
 cd vsas-agile-cicd
+./gradlew test
 ./gradlew shadowJar
 ```
 
-The executable JAR will be created at `app/build/libs/app-all.jar`.
-
-After building, run the application using:
+Run the fat JAR:
 
 ```bash
 java -jar app/build/libs/app-all.jar
 ```
 
-## Usage
-
-### Interactive Mode
-
-Launch the application without arguments to enter interactive mode:
+Run a direct command:
 
 ```bash
-java -jar app-all.jar
+java -jar app/build/libs/app-all.jar list --name demo
 ```
 
-You will see:
+Common commands:
 
-```
-Welcome to VSAS CLI. Type 'help' or 'help <command>' for assistance.
-
-vsas>
-```
-
-Type commands at the prompt. Use `exit` or `quit` to terminate the session.
-
-### Command-Line Mode
-
-Execute commands directly:
-
-```bash
-java -jar app-all.jar <command> [arguments]
-```
-
-Example:
-
-```bash
-java -jar app-all.jar list --uploader-id U-100
-```
-
-## Available Commands
-
-### Authentication
-
-#### register
-
-Register a new user account.
-
-```bash
-register --username <u> --email <e> --phone <ph> --id-key <k> [--role <role>]
-```
-
-Example:
-
-```bash
-register --username alice --email alice@example.com --phone 0400000000 --id-key U-100
-```
-
-#### login
-
-Log in with username and password.
-
-```bash
-login --username <u>
-```
-
-Example:
-
-```bash
-login --username alice
-```
-
-If password is omitted, you will be prompted securely.
-
-#### logout
-
-Log out of the current session.
-
-```bash
-logout
-```
-
-#### whoami
-
-Display the current authenticated user or guest status.
-
-```bash
-whoami
-```
-
-### Scroll Management
-
-#### list
-
-List scroll metadata with optional filters.
-
-```bash
-list [--uploader-id <id>] [--scroll-id <sid>] [--name <kw>] [--from <yyyy-MM-dd>] [--to <yyyy-MM-dd>]
-```
-
-Example:
-
-```bash
-list --uploader-id U-100 --from 2025-01-01
-```
-
-#### upload
-
-Upload a scroll binary and metadata. Requires authentication.
-
-```bash
-upload --id <sid> --name <name> --file <path>
-```
-
-Example:
-
-```bash
-upload --id S-001 --name "Quarterly Report" --file ./report.pdf
-```
-
-#### download
-
-Download a scroll to the local filesystem. Requires authentication.
-
-```bash
-download --id <sid> [--out <dir>]
-```
-
-Example:
-
-```bash
-download --id S-001 --out ./downloads
-```
-
-#### preview
-
-Preview metadata and a snippet of a scroll.
-
-```bash
-preview --id <sid>
-```
-
-Example:
-
-```bash
-preview --id S-001
-```
-
-#### scroll delete
-
-Delete a scroll you uploaded. Requires authentication.
-
-```bash
-scroll delete --id <sid> [--yes]
-```
-
-Example:
-
-```bash
-scroll delete --id S-001 --yes
-```
-
-#### scroll update
-
-Update scroll metadata or file. Requires authentication.
-
-```bash
-scroll update --id <sid> [--name "<n>"] [--file <path>] [--yes]
-```
-
-Example:
-
-```bash
-scroll update --id S-001 --name "Updated Name"
-```
-
-### Bookmark Management
-
-All bookmark commands require authentication.
-
-#### bookmark add
-
-Add a bookmark for a scroll.
-
-```bash
-bookmark add --id <sid>
-```
-
-Example:
-
-```bash
-bookmark add --id S-001
-```
-
-#### bookmark list
-
-List bookmarks for the current user.
-
-```bash
-bookmark list
-```
-
-#### bookmark remove
-
-Remove a bookmark.
-
-```bash
-bookmark remove --id <sid> [--yes]
-```
-
-Example:
-
-```bash
-bookmark remove --id S-001 --yes
-```
-
-### Profile Management
-
-#### profile update
-
-Update profile contact details or password. Requires authentication.
-
-```bash
-profile update [--email <e>] [--phone <ph>] [--password]
-```
-
-Example:
-
-```bash
-profile update --email new@example.com --password
-```
-
-### Administrative Commands
-
-All administrative commands require admin role.
-
-#### admin users add
-
-Create a user account.
-
-```bash
-admin users add --username <u> --id-key <k> --role <user|admin> [--email <e>] [--phone <ph>]
-```
-
-Example:
-
-```bash
-admin users add --username alice --id-key U-100 --role admin --email alice@example.com
-```
-
-#### admin users list
-
-List users with optional filters.
-
-```bash
-admin users list [--username <u>] [--id-key <k>] [--role <admin|user>]
-```
-
-Example:
-
-```bash
-admin users list --role admin
-```
-
-#### admin users delete
-
-Delete a user account.
-
-```bash
-admin users delete --username <u> [--yes]
-```
-
-Example:
-
-```bash
-admin users delete --username alice --yes
-```
-
-#### admin users role
-
-Update a user's role.
-
-```bash
-admin users role --username <u> --role <admin|user>
-```
-
-Example:
-
-```bash
-admin users role --username alice --role admin
-```
-
-#### admin stats
-
-Show scroll usage statistics.
-
-```bash
-admin stats [--by uploader]
-```
-
-Example:
-
-```bash
-admin stats --by uploader
-```
-
-### Help
-
-#### help
-
-Show help for commands.
-
-```bash
-help [<command> [<subcommand>...]]
-```
-
-Examples:
-
-```bash
+```text
 help
-help upload
-help scroll delete
+register --username <name> --email <email> --phone <phone> --id-key <key>
+login --username <name>
+upload --id <scroll-id> --name <name> --file <path>
+list [--uploader-id <id>] [--scroll-id <id>] [--name <keyword>]
+download --id <scroll-id> [--out <directory>]
+bookmark add --id <scroll-id>
+admin users list
 ```
 
-## Development
+## Releases
 
-### Building and Running
+The public repository preserves the migrated release history and version tags from the original coursework repository. The latest migrated release is `V3.8.3`, with versioned JAR assets available from GitHub Releases.
 
-To build the project and run the application:
+## Roadmap
 
-```bash
-./gradlew shadowJar
-java -jar app/build/libs/app-all.jar
-```
+Next development directions I would take as a portfolio continuation:
 
-For development purposes, you can also run directly from source using Gradle:
+- add a GitHub Actions workflow mirroring the Jenkins checks for public-repo visibility;
+- move persistence from TSV files to SQLite or PostgreSQL while keeping repository interfaces testable;
+- add signed release artifacts, checksums, and SBOM generation;
+- package the CLI with a reproducible container image and seeded demo data;
+- improve UX with a richer terminal UI and clearer validation messages;
+- add a lightweight web/admin dashboard backed by the same service layer;
+- preserve PR/project evidence as static portfolio documentation where native GHES PR migration was not available.
 
-```bash
-./gradlew run
-```
+## Migration Note
 
-Note: It is recommended to use `java -jar` with the built JAR for production use.
-
-### Testing
-
-Run the test suite and generate coverage reports:
-
-```bash
-./gradlew test jacocoTestReport
-```
-
-Reports are available at:
-
-- Test results: `app/build/reports/tests/test/index.html`
-- Coverage report: `app/build/reports/jacoco/test/html/index.html`
-
-### Code Style
-
-This project uses Google Java Format for code formatting.
-
-Format code locally:
-
-```bash
-./gradlew googleJavaFormat
-```
-
-Verify formatting (runs automatically with `check`):
-
-```bash
-./gradlew verifyGoogleJavaFormat
-```
-
-## Build
-
-Build the standalone executable JAR:
-
-```bash
-./gradlew shadowJar
-```
-
-The output will be at `app/build/libs/app-all.jar`.
-
-## License
-
-MIT © 2025 SOFT2412-COMP9412-2025s2. See [LICENSE](LICENSE) for details.
+This repository was migrated from Sydney GitHub Enterprise Server to GitHub.com as a public portfolio repository. See [`MIGRATION.md`](MIGRATION.md) for the migration scope, author rewrite notes, and fidelity limitations.
